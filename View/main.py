@@ -6,7 +6,42 @@ def init():
     pygame.init()
 
     # Display del tamaño de la pantalla
-    win = pygame.display.set_mode((200, 200))
+    win = pygame.display.set_mode((800, 500))
+
+    # Establecer icono para app
+    icon = pygame.image.load("Model/images/icon/logodron 1.png")
+    pygame.display.set_icon(icon)
+
+    # Nombre de la app
+    name_app = "AIC-Drone"
+    pygame.display.set_caption(name_app)
+
+    # Imagen de App al cargar
+    show_image = True
+    screen_icon = pygame.image.load("Model/images/icon/ScreenApp.png")
+    win.blit(screen_icon, screen_icon.get_rect())
+    pygame.display.update()
+
+    # Mostrar imagen por 2 seg
+    pygame.time.wait(2000)
+
+    # Cerrar ventana
+    pygame.quit()
+
+    # Mostrar nueva ventana para cargar app
+    pygame.init()
+
+    # Display del tamaño de la pantalla
+    win = pygame.display.set_mode((800, 500))
+
+    # Establecer icono para app
+    icon = pygame.image.load("Model/images/icon/logodron 1.png")
+    pygame.display.set_icon(icon)
+
+    # Nombre de la app
+    name_app = "AIC-Drone"
+    pygame.display.set_caption(name_app)
+
 
 # Funcion para la deteccion de teclas del teclado
 def getKey(keyName):

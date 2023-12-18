@@ -1,5 +1,5 @@
 from djitellopy import tello
-import main as man
+import View.main as man
 import math
 import os
 import numpy as np
@@ -238,8 +238,6 @@ print(me.get_battery())
 me.streamon()
 
 while True:
-
-
     if man.getKey('l'):
         me.land()
         time.sleep(2)

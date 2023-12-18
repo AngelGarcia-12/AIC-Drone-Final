@@ -45,7 +45,8 @@ import functools
 import json
 import os
 import tensorflow as tf
-from tensorflow.contrib import framework as contrib_framework
+# from tensorflow.contrib import framework as contrib_framework
+from tensorflow.python.framework import framework_lib as contrib_framework
 
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
@@ -85,7 +86,8 @@ flags.DEFINE_string('model_config_path', '',
 FLAGS = flags.FLAGS
 
 
-@contrib_framework.deprecated(None, 'Use object_detection/model_main.py.')
+# @contrib_framework.deprecated(None, 'Use object_detection/model_main.py.')
+contrib_framework.deprecation.deprecated(None, 'Use object_detection/model_main.py')
 def main(_):
   assert FLAGS.train_dir, '`train_dir` is missing.'
   if FLAGS.task == 0: tf.io.gfile.makedirs(FLAGS.train_dir)
