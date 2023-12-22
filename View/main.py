@@ -1,8 +1,18 @@
 import pygame
+from djitellopy import tello
+import screen_app
 
 # Inicio de la app
 def init():
 
+    # Cargar la ventana de presentacion de la app
+    previewWindowLoad()
+
+    # Cargar la ventana principal de la app
+    mainWindowApp()
+    
+# Cargar ventana de presentacion
+def previewWindowLoad():
     pygame.init()
 
     # Display del tamaño de la pantalla
@@ -28,11 +38,15 @@ def init():
     # Cerrar ventana
     pygame.quit()
 
+# Ventana principal de la aplicacion
+def mainWindowApp():
+    socket = tello.Tello()
+    
     # Mostrar nueva ventana para cargar app
     pygame.init()
 
     # Display del tamaño de la pantalla
-    win = pygame.display.set_mode((800, 500))
+    win = pygame.display.set_mode((800, 600))
 
     # Establecer icono para app
     icon = pygame.image.load("Model/images/icon/logodron 1.png")
@@ -42,6 +56,17 @@ def init():
     name_app = "AIC-Drone"
     pygame.display.set_caption(name_app)
 
+    # Saber si se establecio la conexion
+    while socket.is_flying == False: 
+        try:
+            socket.connect()
+        except Exception as e:
+            print("Intentando establecer conexion")
+            screen_app.loadScreenApp(win)
+        else:
+            print("Conexion establecida")
+
+    # pygame.display.update() 
 
 # Funcion para la deteccion de teclas del teclado
 def getKey(keyName):
