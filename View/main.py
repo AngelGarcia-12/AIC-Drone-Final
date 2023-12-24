@@ -1,12 +1,11 @@
 import pygame
-from djitellopy import tello
 import screen_app
 
 # Inicio de la app
 def init():
 
     # Cargar la ventana de presentacion de la app
-    previewWindowLoad()
+    # previewWindowLoad()
 
     # Cargar la ventana principal de la app
     mainWindowApp()
@@ -40,7 +39,6 @@ def previewWindowLoad():
 
 # Ventana principal de la aplicacion
 def mainWindowApp():
-    socket = tello.Tello()
     
     # Mostrar nueva ventana para cargar app
     pygame.init()
@@ -57,36 +55,38 @@ def mainWindowApp():
     pygame.display.set_caption(name_app)
 
     # Saber si se establecio la conexion
-    while socket.is_flying == False: 
-        try:
-            socket.connect()
-        except Exception as e:
-            print("Intentando establecer conexion")
-            screen_app.loadScreenApp(win)
-        else:
-            print("Conexion establecida")
+    # while socket.is_flying == False: 
+    #     try:
+    #         socket.connect()
+    #         # socket.takeoff()
+    #     except Exception as e:
+    #         print("Intentando establecer conexion")
+    #         screen_app.loadScreenApp(win)
+    #     else:
+    #         print("Conexion establecida")
+    screen_app.cameraScreen(win)
 
     # pygame.display.update() 
 
 # Funcion para la deteccion de teclas del teclado
-def getKey(keyName):
-    ans = False
+# def getKey(keyName):
+#     ans = False
 
-    for eve in pygame.event.get(): pass
+#     for eve in pygame.event.get(): pass
 
-    keyInput = pygame.key.get_pressed()
+#     keyInput = pygame.key.get_pressed()
 
-    myKey = getattr(pygame, 'K_{}'.format(keyName))
+#     myKey = getattr(pygame, 'K_{}'.format(keyName))
 
-    # print('K_{}'.format(keyName))
+#     # print('K_{}'.format(keyName))
 
-    if keyInput[myKey]:
+#     if keyInput[myKey]:
 
-        ans = True
+#         ans = True
 
-    pygame.display.update()
+#     pygame.display.update()
 
-    return ans
+#     return ans
 
 ######## PARAMETROS EMPIRICOS ###########
 
