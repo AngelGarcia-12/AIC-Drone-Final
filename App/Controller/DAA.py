@@ -1,5 +1,5 @@
 from djitellopy import tello
-import View.main as man
+import App.main as man
 import math
 import os
 import numpy as np
