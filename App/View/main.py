@@ -1,5 +1,5 @@
 import pygame
-from View import screen_app
+import screen_app
 
 # Inicio de la app
 def init():
@@ -26,7 +26,6 @@ def previewWindowLoad():
     pygame.display.set_caption(name_app)
 
     # Imagen de App al cargar
-    show_image = True
     screen_icon = pygame.image.load("App/Model/images/icon/ScreenApp.png")
     win.blit(screen_icon, screen_icon.get_rect())
     pygame.display.update()

@@ -11,7 +11,6 @@ from typing import Dict, List
 OBSTACLE = 255
 UNOCCUPIED = 0
 
-
 class DStarLite:
     def __init__(self, map: OccupancyGridMap, s_start: (int, int), s_goal: (int, int)):
         """
@@ -167,3 +166,17 @@ class DStarLite:
             self.compute_shortest_path()
         #  print("path found!")
         return path, self.g, self.rhs
+
+def convdist(posicion, modo=0):
+    """
+    modo 0 es m a px """
+    nposicion = []
+    if modo == 0:  # Convertir de m a px del mapeado
+        nposicion.append(int(posicion[0]*100/10+250))
+        nposicion.append(int(round(250-posicion[1] * 100 / 10)))
+
+    elif modo == 1: #convertir px del mapeado a m
+        nposicion.append(round((posicion[0]-250)*10/100, 2))
+        nposicion.append(round(-(posicion[1]-250)*10/100, 2))
+    npos=(nposicion[0], nposicion[1])
+    return npos

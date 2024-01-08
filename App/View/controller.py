@@ -1,5 +1,4 @@
 from time import sleep
-import math
 import pygame
 
 ############################# ENTRADAS DE TECLADO #########################################
@@ -117,14 +116,15 @@ dInterval = fSpeed * interval
 
 aInterval = aSpeed * interval
 
-x, y = 250, 250
-a = 0
-yaw = 0
+# Valores iniciales del dron
+# x, y = 250, 250
+# a = 0
+# yaw = 0
 
 ###############################################
 ################# POSICION INICIAL EN MAPEADO #################
 
-pos = (250, 250)
-points = [(0, 0)]
+# pos = (250, 250)
+# points = [(0, 0),(0, 0)]
 
 ###############################################################

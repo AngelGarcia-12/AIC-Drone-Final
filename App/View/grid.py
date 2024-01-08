@@ -124,7 +124,6 @@ class OccupancyGridMap:
         nodes = [(x, y) for x in range(px - view_range, px + view_range + 1)
                  for y in range(py - view_range, py + view_range + 1)
                  if self.in_bounds((x, y))]
-        
         return {node: UNOCCUPIED if self.is_unoccupied(pos=node) else OBSTACLE for node in nodes}
 
 
