@@ -214,7 +214,7 @@ def drawpoints(img, points, pos, obstaculos, angulo=0.0, modo = 0):
                 (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 0, 70), 1)
     
     # Alerta sobre posible perdida de señal
-    if pos[1] <= 231:
+    if pos[1] <= 233:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50

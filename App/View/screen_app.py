@@ -4,13 +4,39 @@ import math
 from djitellopy import tello
 import cv2
 from controller import *
-from d_star_lite import DStarLite, convdist
-from grid import OccupancyGridMap, SLAM
+from View.d_star_lite import DStarLite, convdist
+from View.grid import OccupancyGridMap, SLAM
 import numpy as np
 import os
 
 socket = tello.Tello()
-global frame
+global frame, frameCam
+
+# Valores iniciales del drone
+
+x, y = 250, 250 #Posicion inicial
+a = 0
+i = 0
+yaw = 0 #Angulo inicial
+x_dim = 500
+y_dim = 500
+start = (x, y)
+destpx = (500, 500)
+view_range = 5
+map = OccupancyGridMap(x_dim, y_dim, '8N')
+points = [(0, 0), (0, 0)]
+modo = 0
+pos = (250, 250)
+posPath = (250, 250)
+lastpos = (x-1, y-1)
+slam = SLAM(map=map, view_range=view_range)
+new_observation = {"pos": None, "type": None}
+# --------------- Limite de rango para el dron ----------------------#
+LIMIT = 230
+# ------------------------- Constantes ------------------------------#
+OBSTACLE = 255
+UNOCCUPIED = 0
+# -------------------------------------------------------------------#
 
 def getkeyboardinput():
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
@@ -131,6 +157,12 @@ def getkeyboardinput():
 
     return [lr, fb, ud, yv], (x, y), yaw
 
+# Alarma de deteccion de perdidad de señal
+def reprodAlarm():
+    pygame.mixer.init()
+    pygame.mixer.music.load("App/Model/sounds/alarma.mp3")
+    pygame.mixer.music.play(20)
+
 def drawpoints(img, points, pos, angulo=0.0, modo = 0):
     global path
 
@@ -141,35 +173,21 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
 
     cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)},{socket.get_height()/100}) m {angulo}gr',
                 (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 50, 0), 1)
+    # Alerta sobre posible perdida de señal
+    if pos[1] <= LIMIT+3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    # elif pos[1] >= LIMIT:
+    #     reprodAlarm()
+
     if modo == 1:
         for point in path:
             cv2.circle(img, point, 1, (130, 130, 240), cv2.FILLED)
 
     cv2.drawMarker(img, pos, (245, 170, 0), cv2.MARKER_STAR, 6, 1) # Estrella azul (255,0,0)
-
-# Valores iniciales del drone
-OBSTACLE = 255
-UNOCCUPIED = 0
-
-x, y = 250, 250
-a = 0
-yaw = 0
-x_dim = 500
-y_dim = 500
-start = (x, y)
-destpx = (500, 500)
-view_range = 5
-map = OccupancyGridMap(x_dim, y_dim, '8N')
-points = [(0, 0), (0, 0)]
-modo = 0
-pos = (250, 250)
-posPath = (250, 250)
-lastpos = (x-1, y-1)
-slam = SLAM(map=map, view_range=view_range)
-new_observation = {"pos": None, "type": None}
-# --------------- Limite de rango para el dron ----------------------#
-LIMIT = 230
-# -------------------------------------------------------------------#
 
 def loadScreenApp(win):
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 50)
@@ -216,26 +234,9 @@ def loadScreenApp(win):
 
 pygame.quit()
 
-def cameraScreen(win):
+def cameraScreen(win,path, destm, destpx, obstaculos):
     SIZE_WIDTH = 50
     SIZE_HEIGH = 50
-    x_dim = 500
-    y_dim = 500
-    start = (x, y)
-    destpx = (500, 500)
-    view_range = 5
-    map = OccupancyGridMap(x_dim, y_dim, '8N')
-    points = [(0, 0), (0, 0)]
-    modo = 0
-    pos = (250, 250)
-    posPath = (250, 250)
-    lastpos = (x-1, y-1)
-    slam = SLAM(map=map, view_range=view_range)
-    new_observation = {"pos": None, "type": None}
-    path = []
-    destm = []
-    destpx = []
-    i = 0
 
     # Mostrar info de la bateria
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 20)
@@ -294,12 +295,13 @@ def cameraScreen(win):
             camera = 1
 
             while True:
-                [vals, posControl, yaw]=getkeyboardinput()
+                [vals, pos, yaw]=getkeyboardinput()
                 # vals = getkeyboardinput()
                 socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
                 sleep(0.15)
                 if camera == 1:
                     frame = socket.get_frame_read().frame
+                    frameCam = socket.get_frame_read().frame
                     # img = cv2.resize(frame, (600, 400))
                     # cv2.imshow("DJI TELLO", img)
                     win.fill((0,0,0))  # Limpiar la pantalla
@@ -311,99 +313,78 @@ def cameraScreen(win):
                 """
                     ################## MAPEADO #################
                 """
-                print(points)
-                mapeado = np.zeros((500, 500, 3), np.uint8)
-                
-                if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
-                    points.append(pos)
-                # Mapeado
-                drawpoints(mapeado, points, pos, yaw, modo)
-                cv2.imshow('Mapping', mapeado)
                 # print(points)
                 # mapeado = np.zeros((500, 500, 3), np.uint8)
-                # pos = posControl
-                # if getKey('m'):
-                #     if modo == 0:
-                #         path = []
-                #         destm = []
-                #         destpx = []
-                #         i = 0
-                #         print('Cambiado a modo automatico')
-                #     modo = not modo
-
-                #     if getKey('r'):
-                #         points = [(0, 0), (0, 0)]
-
-                #     elif modo == 1:
-                #         pos = posPath
-                #         """
-                #             Controlar el movimiento del dron si el movimiento hacia adelante es mayor
-                #             hacer que el dron regrese. OBJETIVO DEL PROYECTO
-                #             En este caso pos es una tupla, considerar en este caso el segundo valor
-                #         """
-                #         print("DStarLite")
-                #         if i == 0:
-                        
-                #             # print("Escriba las coordenadas (x,y) de destino en metros con precision de 2 decimales")
-                #             # x = float(input("Coordenada x = "))  # metros
-                #             # y = float(input("Coordenada y = "))
-                #             n = 0.0
-                #             z = 0.0
-                #             destm = (n, z)
-                #             destpx = convdist(destm)
-                #             slam = SLAM(map=map, view_range=view_range)
-                #             new_observation = {"pos": None, "type": None}
-                #             dstar = DStarLite(map, pos, destpx)
-                #             path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                #             c = len(path)
-
-                #         if new_observation is not None:
-                #             old_map = map
-                #             slam.set_ground_truth_map(gt_map=map)
-
-                #         if pos != lastpos:
-                #             lastpos = pos
-                #             # slam
-                #             new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-                #             dstar.new_edges_and_old_costs = new_edges_and_old_costs
-                #             dstar.sensed_map = slam_map
-                #             # d star
-                #             path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                #             c2 = len(path)
-                #             # print("Path: ", pat
-                #         # pf.replan()
-                #         # path=pf.get_path()
-                #         cv2.drawMarker(mapeado, destpx, (150, 230, 150), cv2.MARKER_DIAMOND, 6, 1)
-                #         cv2.putText(mapeado, f'({round(destm[0] , 2)},{round(destm[1] , 2)},) m ',
-                #                 (destpx[0] + 5, destpx[1] + 10), cv2.FONT_HERSHEY_PLAIN, 0.75, (150, 230, 150), 1)
-                            
-                #         i += 1
-                #         if i % 50 == 0:
-                #             obstaculos = np.unique(obstaculos, axis=0)
-                #         lastpos = pos
-                        
-                #         if len(path) == 1 or 0:
-                #             if pos[1] <= 220:
-                #                 n = 0.0
-                #                 z = -3.0
-                #                 destm = (n, z)
-                #                 destpx = convdist(destm)
-                #                 slam = SLAM(map=map, view_range=view_range)
-                #                 new_observation = {"pos": None, "type": None}
-                #                 dstar = DStarLite(map, pos, destpx)
-                #                 path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                #                 c = len(path)
-                #             print("Ha llegado a su destino, aterrice")
-                #             # return pos
-                #         else:
-                #             pos = path[1]
-                #             posPath = path[1]
-                #         time.sleep(0.25)
+                
                 # if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
                 #     points.append(pos)
                 # # Mapeado
                 # drawpoints(mapeado, points, pos, yaw, modo)
                 # cv2.imshow('Mapping', mapeado)
+
+                #LIMIT es una constante que representa el limite permitido
+                mapeado = np.zeros((500, 500, 3), np.uint8)
+
+                if (pos[1] <= LIMIT and vals[1] >= 10) or pos[1] <= LIMIT or len(path) >= 1:
+                    print("Alcanzo el limite")
+                    # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
+                    print("Pos: ", pos)
+                    if i == 0:
+                        posPath = (pos[0],LIMIT)
+                    pos = posPath
+
+                    if i == 0:
+                        n = 0.0
+                        z = -2.0
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
+
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
+
+                    if pos != lastpos:
+                        lastpos = pos
+
+                        # slam
+
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
+
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
+
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
+                    lastpos = pos
+
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                elif (pos[0] <= LIMIT and vals[0] >= 10) or pos[0] <= LIMIT:
+                    print("Alcanzo el limite")
+
+                if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
+                    points.append(pos)
+
+                drawpoints(mapeado, points, pos, yaw, 1)
+                cv2.imshow('Mapeado', mapeado)
                 
                 """
                     #################### MAPEADO ###################
@@ -422,12 +403,6 @@ def cameraScreen(win):
                 if current_time - last_toggle > interval:
                     visible = not visible
                     last_toggle = current_time
-
-                # Tratar de utilizar la variable fram que es la camara
-                # win.fill((0,0,0))  # Limpiar la pantalla
-                # frame = np.rot90(frame)
-                # frame = pygame.surfarray.make_surface(frame)
-                # win.blit(frame,(0,0))
 
                 # Mostrar u ocultar la imagen dependiendo del estado visible
                 if visible and getKey('UP'):
@@ -463,93 +438,3 @@ def cameraScreen(win):
             print(e)
         else:
             print("Conexion establecida")
-
-# def mappingDStarLite():
-#     while True:
-#         mapeado = np.zeros((500, 500, 3), np.uint8)
-#         pos = posControl
-#         # if getKey('m'):
-#         #     if modo == 0:
-#         #         path = []
-#         #         destm = []
-#         #         destpx = []
-#         #         i = 0
-#         #         print('Cambiado a modo automatico')
-#         #     modo = not modo
-
-#         #     if getKey('r'):
-#         #         points = [(0, 0), (0, 0)]
-
-#         #     elif modo == 1:
-#         #         pos = posPath
-#         #         """
-#         #             Controlar el movimiento del dron si el movimiento hacia adelante es mayor
-#         #             hacer que el dron regrese. OBJETIVO DEL PROYECTO
-#         #             En este caso pos es una tupla, considerar en este caso el segundo valor
-#         #         """
-#         #         print("DStarLite")
-#         #         if i == 0:
-                
-#         #             # print("Escriba las coordenadas (x,y) de destino en metros con precision de 2 decimales")
-#         #             # x = float(input("Coordenada x = "))  # metros
-#         #             # y = float(input("Coordenada y = "))
-#         #             n = 0.0
-#         #             z = 0.0
-#         #             destm = (n, z)
-#         #             destpx = convdist(destm)
-#         #             slam = SLAM(map=map, view_range=view_range)
-#         #             new_observation = {"pos": None, "type": None}
-#         #             dstar = DStarLite(map, pos, destpx)
-#         #             path, g, rhs = dstar.move_and_replan(robot_position=pos)
-#         #             c = len(path)
-
-#         #         if new_observation is not None:
-#         #             old_map = map
-#         #             slam.set_ground_truth_map(gt_map=map)
-
-#         #         if pos != lastpos:
-#         #             lastpos = pos
-#         #             # slam
-#         #             new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-#         #             dstar.new_edges_and_old_costs = new_edges_and_old_costs
-#         #             dstar.sensed_map = slam_map
-#         #             # d star
-#         #             path, g, rhs = dstar.move_and_replan(robot_position=pos)
-#         #             c2 = len(path)
-#         #             # print("Path: ", pat
-#         #         # pf.replan()
-#         #         # path=pf.get_path()
-#         #         cv2.drawMarker(mapeado, destpx, (150, 230, 150), cv2.MARKER_DIAMOND, 6, 1)
-#         #         cv2.putText(mapeado, f'({round(destm[0] , 2)},{round(destm[1] , 2)},) m ',
-#         #                 (destpx[0] + 5, destpx[1] + 10), cv2.FONT_HERSHEY_PLAIN, 0.75, (150, 230, 150), 1)
-                    
-#         #         i += 1
-#         #         if i % 50 == 0:
-#         #             obstaculos = np.unique(obstaculos, axis=0)
-#         #         lastpos = pos
-                
-#         #         if len(path) == 1 or 0:
-#         #             if pos[1] <= 220:
-#         #                 n = 0.0
-#         #                 z = -3.0
-#         #                 destm = (n, z)
-#         #                 destpx = convdist(destm)
-#         #                 slam = SLAM(map=map, view_range=view_range)
-#         #                 new_observation = {"pos": None, "type": None}
-#         #                 dstar = DStarLite(map, pos, destpx)
-#         #                 path, g, rhs = dstar.move_and_replan(robot_position=pos)
-#         #                 c = len(path)
-#         #             print("Ha llegado a su destino, aterrice")
-#         #             # return pos
-#         #         else:
-#         #             pos = path[1]
-#         #             posPath = path[1]
-#         #         time.sleep(0.25)
-#         if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
-#             points.append(pos)
-#         # Mapeado
-#         drawpoints(mapeado, points, pos, yaw, modo)
-#         cv2.imshow('Mapping', mapeado)
-
-#     # Clean up
-#     cv2.destroyAllWindows()
