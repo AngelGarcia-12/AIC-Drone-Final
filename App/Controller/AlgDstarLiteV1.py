@@ -402,8 +402,7 @@ try:
                 c2 = len(path)
                 # print("Path2: ",path)
 
-                # pf.replan()
-                # path=pf.get_path()
+                # pf.replan()                # path=pf.get_path()
                 # Marca el destino
             i += 1
             if i % 50 == 0:

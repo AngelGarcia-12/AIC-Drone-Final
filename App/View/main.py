@@ -2,7 +2,6 @@ import pygame
 import screen_app
 
 # Variables necesarias para el algoritmo D*Lite
-path = []
 destm = []
 destpx = []
 obstaculos = []
@@ -59,7 +58,7 @@ def mainWindowApp():
     name_app = "AIC-Drone"
     pygame.display.set_caption(name_app)
 
-    screen_app.cameraScreen(win, path=path, destm=destm, destpx=destpx, obstaculos=obstaculos)
+    screen_app.cameraScreen(win, path=screen_app.path, destm=destm, destpx=destpx, obstaculos=obstaculos)
 
     # pygame.display.update() 
 
