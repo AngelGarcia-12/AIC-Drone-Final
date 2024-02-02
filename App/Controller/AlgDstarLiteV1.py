@@ -367,7 +367,7 @@ try:
         # Valor de Y (arriba) va disminuyendo cuando se mueve
         if (pos[1] <= LIMIT and vals[1] >= 10) or pos[1] <= LIMIT or len(path) >= 1:
             print("Alcanzo el limite")
-            # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
+            socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
             print("Pos: ", pos)
             if i == 0:
                 posPath = (pos[0],LIMIT)
