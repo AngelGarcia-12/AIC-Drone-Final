@@ -33,8 +33,14 @@ slam = SLAM(map=map, view_range=view_range)
 new_observation = {"pos": None, "type": None}
 path = []
 # --------------- Limite de rango para el dron ----------------------#
-LIMIT_EXAMPLE = 230
-LIMIT = 50
+LIMIT_EXAMPLE_Y_PLUS = 230
+LIMIT_EXAMPLE_Y_MINUS = 270
+LIMIT_EXAMPLE_X_PLUS = 230
+LIMIT_EXAMPLE_X_MINUS = 270
+LIMIT_Y_PLUS = 50
+LIMIT_Y_MINUS = 350
+LIMIT_X_PLUS = 50
+LIMIT_X_MINUS = 350
 # ------------------------- Constantes ------------------------------#
 OBSTACLE = 255
 UNOCCUPIED = 0
@@ -176,7 +182,25 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
     cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)},{socket.get_height()/100}) m {angulo}gr',
                 (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 50, 0), 1)
     # Alerta sobre posible perdida de señal
-    if pos[1] <= LIMIT_EXAMPLE+3:
+    if pos[1] <= LIMIT_EXAMPLE_Y_PLUS+3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[1] <= LIMIT_EXAMPLE_Y_MINUS+3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[0] <= LIMIT_EXAMPLE_X_PLUS+3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[0] <= LIMIT_EXAMPLE_X_MINUS+3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
@@ -331,7 +355,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                 print(pos)
 
                 # Movimiento en direccion y (adelante)
-                if (pos[1] <= LIMIT_EXAMPLE and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE or len(path) >= 1:
+                if (pos[1] <= LIMIT_EXAMPLE_Y_PLUS and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE_Y_PLUS or len(path) >= 1:
                     print("Alcanzo el limite")
                     # socket.send_rc_control(vals[0], -20, vals[2], vals[3])
                     if i > 3:
@@ -340,7 +364,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
                     print("Pos: ", pos)
                     if i == 0:
-                        posPath = (pos[0],LIMIT_EXAMPLE)
+                        posPath = (pos[0],LIMIT_EXAMPLE_Y_PLUS)
                     pos = posPath
 
                     if i == 0:
@@ -388,7 +412,11 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         pos = path[1]
                         posPath = path[1]
                 # Movimiento en direccion x (derecha)
-                elif (pos[0] <= LIMIT_EXAMPLE and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE:
+                elif (pos[0] <= LIMIT_EXAMPLE_X_PLUS and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE_X_PLUS:
+                    print("Alcanzo el limite")
+                elif (pos[1] >= LIMIT_EXAMPLE_Y_MINUS and vals[1] >= 10) or pos[1] >= LIMIT_EXAMPLE_Y_MINUS or len(path) >= 1:
+                    print("Alcanzo el limite")
+                elif (pos[0] >= LIMIT_EXAMPLE_X_MINUS and vals[1] >= 10) or pos[1] >= LIMIT_EXAMPLE_X_MINUS or len(path) >= 1:
                     print("Alcanzo el limite")
 
                 if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
