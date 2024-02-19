@@ -33,7 +33,8 @@ slam = SLAM(map=map, view_range=view_range)
 new_observation = {"pos": None, "type": None}
 path = []
 # --------------- Limite de rango para el dron ----------------------#
-LIMIT = 220
+LIMIT_EXAMPLE = 230
+LIMIT = 50
 # ------------------------- Constantes ------------------------------#
 OBSTACLE = 255
 UNOCCUPIED = 0
@@ -43,7 +44,7 @@ def getkeyboardinput():
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
     d = 0
     global camera, x, y, yaw, a
-    speed = 20  # cm/s
+    speed = 10  # cm/s
 
     aspeed = 70  # degrees/s 45 gira  cada vez
 
@@ -175,7 +176,7 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
     cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)},{socket.get_height()/100}) m {angulo}gr',
                 (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 50, 0), 1)
     # Alerta sobre posible perdida de señal
-    if pos[1] <= LIMIT+3:
+    if pos[1] <= LIMIT_EXAMPLE+3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
@@ -238,6 +239,8 @@ pygame.quit()
 def cameraScreen(win, path, destm, destpx, obstaculos):
     SIZE_WIDTH = 50
     SIZE_HEIGH = 50
+    i = 0
+    lastpos = (x-1, y-1)
 
     # Mostrar info de la bateria
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 20)
@@ -327,12 +330,17 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                 mapeado = np.zeros((500, 500, 3), np.uint8)
                 print(pos)
 
-                if (pos[1] <= LIMIT and vals[1] >= 10) or pos[1] <= LIMIT or len(path) >= 1:
+                # Movimiento en direccion y (adelante)
+                if (pos[1] <= LIMIT_EXAMPLE and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE or len(path) >= 1:
                     print("Alcanzo el limite")
-                    socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
+                    # socket.send_rc_control(vals[0], -20, vals[2], vals[3])
+                    if i > 3:
+                        socket.send_rc_control(vals[0],vals[1], vals[2], vals[3]) 
+                    else:   
+                        socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
                     print("Pos: ", pos)
                     if i == 0:
-                        posPath = (pos[0],LIMIT)
+                        posPath = (pos[0],LIMIT_EXAMPLE)
                     pos = posPath
 
                     if i == 0:
@@ -379,7 +387,8 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     else:
                         pos = path[1]
                         posPath = path[1]
-                elif (pos[0] <= LIMIT and vals[0] >= 10) or pos[0] <= LIMIT:
+                # Movimiento en direccion x (derecha)
+                elif (pos[0] <= LIMIT_EXAMPLE and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE:
                     print("Alcanzo el limite")
 
                 if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
