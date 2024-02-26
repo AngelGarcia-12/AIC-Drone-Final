@@ -188,7 +188,7 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
-    elif pos[1] <= LIMIT_EXAMPLE_Y_MINUS+3:
+    elif pos[1] >= LIMIT_EXAMPLE_Y_MINUS+3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
@@ -200,7 +200,7 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
-    elif pos[0] <= LIMIT_EXAMPLE_X_MINUS+3:
+    elif pos[0] >= LIMIT_EXAMPLE_X_MINUS+3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
@@ -257,6 +257,7 @@ def loadScreenApp(win):
 
         if flag == 80: # Si pasaron 3 seg
             running = False
+            socket.end()
 
 pygame.quit()
 
@@ -357,8 +358,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                 # Movimiento en direccion y (adelante)
                 if (pos[1] <= LIMIT_EXAMPLE_Y_PLUS and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE_Y_PLUS or len(path) >= 1:
                     print("Alcanzo el limite")
-                    # socket.send_rc_control(vals[0], -20, vals[2], vals[3])
-                    if i > 3:
+                    if i > 20:
                         socket.send_rc_control(vals[0],vals[1], vals[2], vals[3]) 
                     else:   
                         socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
@@ -369,7 +369,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
 
                     if i == 0:
                         n = 0.0
-                        z = -2.0
+                        z = 0.0
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)

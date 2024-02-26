@@ -91,6 +91,76 @@ def getkeyboardinput():
 
     return [lr, fb, ud, yv], (x, y), yaw
 
+def simulGetKeyboardInput(tecla):
+    lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
+
+    speed = 20  # cm/s
+
+    aspeed = 70  # degrees/s 45 gira  cada vez
+
+    global yaw, a, x, y
+
+    d = 0
+    if tecla == 'LEFT':
+
+        lr = -speed
+
+        d = dInterval
+
+        a = 180
+
+    elif tecla == 'RIGHT':
+
+        lr = speed
+
+        d = -dInterval
+
+        a = 180
+
+    if tecla == 'UP':
+
+        fb = speed
+
+        d = dInterval
+
+        a = -90
+
+    elif tecla == 'DOWN':
+
+        fb = -speed
+
+        d = -dInterval
+
+        a = -90
+
+    time.sleep(interval)
+
+    if yaw > 180:
+        yaw = yaw - 360 * (yaw // 180)
+    elif yaw < -180:
+        yaw = yaw + 360 * (-yaw // 180)
+
+    a += yaw
+
+    x += int(d * math.cos(math.radians(a)))
+
+    y += int(d * math.sin(math.radians(a)))
+
+    return [lr, fb, ud, yv], (x, y), yaw
+
+def resetgetkeyboardinput():
+    lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
+
+    speed = 20  # cm/s
+
+    aspeed = 70  # degrees/s 45 gira  cada vez
+
+    d = 0
+    x, y = 250, 250
+    yaw = 0
+
+    return [lr, fb, ud, yv], (x, y), yaw
+
 def getKey(keyName):
     ans = False
 
@@ -231,12 +301,19 @@ LIMIT = 230
 path = []
 destm = []
 destpx = []
+running_again = False
 i = 0
 while True:
     [vals, pos, yaw] = getkeyboardinput()
     mapeado = np.zeros((500, 500, 3), np.uint8)
     # socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
     # Valor de Y (arriba) va disminuyendo cuando se mueve
+    if running_again == True:
+        pos = posNew
+        path = []
+        running_again = False
+        print('Pos Again: ', pos)
+
     if (pos[1] <= LIMIT and vals[1] >= 10) or pos[1] <= LIMIT or len(path) >= 1:
         print("Alcanzo el limite")
         # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
@@ -285,9 +362,20 @@ while True:
         # print(pos)
         if len(path) == 1 or 0:
             print("Ha llegado a su destino, aterrice")
+            cv2.destroyAllWindows()
+            points = [(0, 0),(0, 0)]
+            destm = []
+            destpx = []
+            i = 0
+            # [vals, pos, yaw] = resetgetkeyboardinput()
+            running_again = True
         else:
             pos = path[1]
             posPath = path[1]
+            if len(path) != 1:
+                [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+            if pos[0] > 250 and posNew[0] > 250:
+                [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
     elif (pos[0] <= LIMIT and vals[0] >= 10) or pos[0] <= LIMIT:
         print("Alcanzo el limite")
         # socket.send_rc_control(-20, vals[1], vals[2], vals[3])
@@ -380,6 +468,7 @@ while True:
     #     time.sleep(0.25)
     if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
         points.append(pos)
+
     # Mapeado
     # drawpoints(mapeado, points, pos, obstaculos, yaw, modo)
     drawpoints(mapeado, points, pos, obstaculos, yaw, 1)
