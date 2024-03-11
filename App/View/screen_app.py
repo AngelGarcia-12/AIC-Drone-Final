@@ -28,10 +28,12 @@ points = [(0, 0), (0, 0)]
 modo = 0
 pos = (250, 250)
 posPath = (250, 250)
+# posNew = (250, 250)
 lastpos = (x-1, y-1)
 slam = SLAM(map=map, view_range=view_range)
 new_observation = {"pos": None, "type": None}
 path = []
+running_again = False
 # --------------- Limite de rango para el dron ----------------------#
 LIMIT_EXAMPLE_Y_PLUS = 230
 LIMIT_EXAMPLE_Y_MINUS = 270
@@ -46,7 +48,7 @@ OBSTACLE = 255
 UNOCCUPIED = 0
 # -------------------------------------------------------------------#
 
-def getkeyboardinput():
+def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
     d = 0
     global camera, x, y, yaw, a
@@ -148,9 +150,118 @@ def getkeyboardinput():
     
     ################ SALIR DE LA APP #################
     elif getKey('e'):
+        cv2.destroyAllWindows()
         pygame.quit()
 
     sleep(0.25)
+
+    if yaw > 180:
+        yaw = yaw - 360 * (yaw // 180)
+    elif yaw < -180:
+        yaw = yaw + 360 * (-yaw // 180)
+
+    a += yaw
+
+    # Mover coordenadas en Y o X
+    # Simular presionar boton adelante
+    if limitYP == True:
+        fb = 0
+        d = -dInterval
+        a = 270
+        x += int(d * math.cos(math.radians(a)))
+
+        y += int(d * math.sin(math.radians(a)))
+
+        return [lr, fb, ud, yv], (x, y), yaw
+
+    # Simular presionar boton derecha
+    if limitXP == True:
+        lr = 0
+        d = dInterval
+        a = -180
+        x += int(d * math.cos(math.radians(a)))
+
+        y += int(d * math.sin(math.radians(a)))
+
+        return [lr, fb, ud, yv], (x, y), yaw
+
+
+    # Simular presionar boton atras
+    if limitXM == True:
+        fb = 0
+        d = dInterval
+        a = -90
+
+        x += int(d * math.cos(math.radians(a)))
+
+        y += int(d * math.sin(math.radians(a)))
+
+        return [lr, fb, ud, yv], (x, y), yaw
+
+    # Simular presionar boton izquierda
+    if limitYM == True:
+        lr = 0
+        d = -dInterval
+        a = 180
+        x += int(d * math.cos(math.radians(a)))
+
+        y += int(d * math.sin(math.radians(a)))
+
+        return [lr, fb, ud, yv], (x, y), yaw
+
+    if limitXP == False or limitYP == False or limitXM == False or limitYM == False:
+        x += int(d * math.cos(math.radians(a)))
+
+        y += int(d * math.sin(math.radians(a)))
+
+    return [lr, fb, ud, yv], (x, y), yaw
+
+def simulGetKeyboardInput(tecla):
+    lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
+
+    speed = 10  # cm/s
+
+    aspeed = 70  # degrees/s 45 gira  cada vez
+
+    yaw = 0 
+    a = 0 
+    x = 250
+    y = 250
+
+    d = 0
+    if tecla == 'LEFT':
+
+        lr = -speed
+
+        d = dInterval
+
+        a = 180
+
+    elif tecla == 'RIGHT':
+
+        lr = speed
+
+        d = -dInterval
+
+        a = 180
+
+    if tecla == 'UP':
+
+        fb = speed
+
+        d = dInterval
+
+        a = -90
+
+    elif tecla == 'DOWN':
+
+        fb = -speed
+
+        d = -dInterval
+
+        a = -90
+
+    time.sleep(interval)
 
     if yaw > 180:
         yaw = yaw - 360 * (yaw // 180)
@@ -258,14 +369,23 @@ def loadScreenApp(win):
         if flag == 80: # Si pasaron 3 seg
             running = False
             socket.end()
+            break
 
 pygame.quit()
 
 def cameraScreen(win, path, destm, destpx, obstaculos):
+    global running_again, points
     SIZE_WIDTH = 50
     SIZE_HEIGH = 50
+    yPos = 0
+    xPos = 0
+    flagLimitYP = False
+    flagLimitXP = False
+    flagLimitYM = False
+    flagLimitXM = False
     i = 0
     lastpos = (x-1, y-1)
+    font = ''
 
     # Mostrar info de la bateria
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 20)
@@ -324,7 +444,8 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
             camera = 1
 
             while True:
-                [vals, pos, yaw]=getkeyboardinput()
+                [vals, pos, yaw]=getkeyboardinput( flagLimitXP, flagLimitYP,
+                                                   flagLimitXM, flagLimitYM )
                 # vals = getkeyboardinput()
                 socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
                 sleep(0.15)
@@ -333,7 +454,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     frameCam = socket.get_frame_read().frame
                     # img = cv2.resize(frame, (600, 400))
                     # cv2.imshow("DJI TELLO", img)
-                    win.fill((0,0,0))  # Limpiar la pantalla
+                    # win.fill((0,0,0))  # Limpiar la pantalla
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     frame = np.rot90(frame)
                     frame = pygame.surfarray.make_surface(frame)
@@ -355,21 +476,32 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                 mapeado = np.zeros((500, 500, 3), np.uint8)
                 print(pos)
 
+                # Identificar segunda o mas usos del retorno
+                if running_again == True:
+                    # pos = posNew
+                    path = []
+                    running_again = False
+                    
                 # Movimiento en direccion y (adelante)
                 if (pos[1] <= LIMIT_EXAMPLE_Y_PLUS and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE_Y_PLUS or len(path) >= 1:
-                    print("Alcanzo el limite")
-                    if i > 20:
-                        socket.send_rc_control(vals[0],vals[1], vals[2], vals[3]) 
-                    else:   
-                        socket.send_rc_control(vals[0], -20, vals[2], vals[3])    
+                    print("Alcanzo el limite Y PLUS")
+                    # if i > 20:
+                    #     socket.send_rc_control(vals[0],vals[1], vals[2], vals[3]) 
+                    # else:   
+                    #     socket.send_rc_control(vals[0], -10, vals[2], vals[3])    
                     print("Pos: ", pos)
+
                     if i == 0:
                         posPath = (pos[0],LIMIT_EXAMPLE_Y_PLUS)
                     pos = posPath
 
                     if i == 0:
                         n = 0.0
-                        z = 0.0
+                        z = -2.0
+                        # Posicion en x al aplicar IA, 10 representa speed
+                        xPos = 250 + (n * 10)
+                        # Posicion en y al aplicar IA, 10 representa speed
+                        yPos = 250 + (z * -10)
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)
@@ -408,23 +540,349 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     # print(pos)
                     if len(path) == 1 or 0:
                         print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        running_again = True
                     else:
                         pos = path[1]
                         posPath = path[1]
+                        """
+                            posNew esta proporcionando la coordenada y
+                            y se le esta asignado a 'pos' el valor
+                            vals puede estar causando problemas
+                        """
+                        if len(path) != 1:
+                            # [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                            lastposAI = path[0]
+                            # Mover en X
+                            # Mover a la derecha signica incrementar x
+                            # Para disminuir con negativo
+                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
+                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
+                            elif lastposAI[0] > pos[0]:
+                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+
+                            # Mover en Y
+                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
+                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
+                            elif lastposAI[1] > pos[1]:
+                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
+                            else:
+                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                            
+                            # posNew = path[0]
+                            # yPos = pos[1]
+                            # yPos += int(1 * math.sin(math.radians(a)))
+                        if pos[0] > xPos: # 250 > 250
+                            # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            print('LEFT') 
+                            print(pos[0], ' > ', xPos)
+                            flagLimitXP = True
+                        elif pos[0] < xPos:
+                            print(pos[0], ' < ', xPos)
+                            flagLimitXM = True
+                        elif pos[1] < yPos: # yPos = 270
+                            flagLimitYP = True
+                        else:
+                            flagLimitXP = False
+                            flagLimitYP = False
+                            flagLimitXM = False
+
                 # Movimiento en direccion x (derecha)
                 elif (pos[0] <= LIMIT_EXAMPLE_X_PLUS and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE_X_PLUS:
-                    print("Alcanzo el limite")
+                    print("Alcanzo el limite X PLUS")
+                    if i == 0:
+                        posPath = (LIMIT_EXAMPLE_X_PLUS, pos[1])
+                    pos = posPath
+
+                    if i == 0:
+                        n = -2.0
+                        z = 0.0
+                        # Posicion en x al aplicar IA, 10 representa speed
+                        xPos = 250 + (n * -10)
+                        # Posicion en y al aplicar IA, 10 representa speed
+                        yPos = 250 + (z * 10)
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
+
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
+
+                    if pos != lastpos:
+                        lastpos = pos
+
+                        # slam
+
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
+
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
+
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
+                    lastpos = pos
+
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        running_again = True
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        
+                        if len(path) != 1:
+                            lastposAI = path[0]
+                            # Mover en X
+                            # Mover a la derecha signica incrementar x
+                            # Para disminuir con negativo
+                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
+                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
+                            elif lastposAI[0] > pos[0]:
+                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+
+                            # Mover en Y
+                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
+                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
+                                flagLimitYP = True
+                            elif lastposAI[1] > pos[1]:#230 > 231
+                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
+                            else:
+                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                                flagLimitXP = False
+                                flagLimitYP = False
+                            
+                        if pos[0] > xPos:# 250 > 250
+                            print('LEFT') 
+                            flagLimitXP = True
+                        elif pos[1] > yPos: #
+                            flagLimitYP = True
+                        else:
+                            flagLimitXP = False
+                            flagLimitYP = False
+
+                # Moviento en direccion y (atras)
                 elif (pos[1] >= LIMIT_EXAMPLE_Y_MINUS and vals[1] >= 10) or pos[1] >= LIMIT_EXAMPLE_Y_MINUS or len(path) >= 1:
-                    print("Alcanzo el limite")
+                    print("Alcanzo el limite Y MINUS")
+                    if i == 0:
+                        posPath = (LIMIT_EXAMPLE_X_PLUS, pos[1])
+                    pos = posPath
+
+                    if i == 0:
+                        n = 2.0
+                        z = 0.0
+                        # Posicion en x al aplicar IA, 10 representa speed
+                        xPos = 250 + (n * -10)
+                        # Posicion en y al aplicar IA, 10 representa speed
+                        yPos = 250 + (z * 10)
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
+
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
+
+                    if pos != lastpos:
+                        lastpos = pos
+
+                        # slam
+
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
+
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
+
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
+                    lastpos = pos
+
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        running_again = True
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        
+                        if len(path) != 1:
+                            lastposAI = path[0]
+                            # Mover en X
+                            # Mover a la derecha signica incrementar x
+                            # Para disminuir con negativo
+                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
+                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
+                            elif lastposAI[0] > pos[0]:
+                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+
+                            # Mover en Y
+                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
+                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
+                            elif lastposAI[1] > pos[1]:
+                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
+                                flagLimitYM = True
+                            else:
+                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                                flagLimitXM = False
+                                flagLimitYM = False
+                            
+                        if pos[0] > xPos:
+                            print('LEFT') 
+                            flagLimitXP = True
+                        elif pos[0] < xPos:
+                            flagLimitXM = True
+                        elif pos[1] < yPos:
+                            flagLimitYM = True
+                        elif pos[1] > yPos:
+                            flagLimitYP = True
+                        else:
+                            flagLimitXM = False
+                            flagLimitYM = False
+                            flagLimitXP = False
+                            flagLimitYP = False
+
+                # Movimiento en direccion x (izquierda)
                 elif (pos[0] >= LIMIT_EXAMPLE_X_MINUS and vals[1] >= 10) or pos[1] >= LIMIT_EXAMPLE_X_MINUS or len(path) >= 1:
-                    print("Alcanzo el limite")
+                    print("Alcanzo el limite X MINUS")
+                    if i == 0:
+                        posPath = (LIMIT_EXAMPLE_X_PLUS, pos[1])
+                    pos = posPath
+
+                    if i == 0:
+                        n = -2.0
+                        z = 0.0
+                        # Posicion en x al aplicar IA, 10 representa speed
+                        xPos = 250 + (n * -10)
+                        # Posicion en y al aplicar IA, 10 representa speed
+                        yPos = 250 + (z * 10)
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
+
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
+
+                    if pos != lastpos:
+                        lastpos = pos
+
+                        # slam
+
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
+
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
+
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
+                    lastpos = pos
+
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        running_again = True
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        
+                        if len(path) != 1:
+                            lastposAI = path[0]
+                            # Mover en X
+                            # Mover a la derecha signica incrementar x
+                            # Para disminuir con negativo
+                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
+                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
+                            elif lastposAI[0] > pos[0]:
+                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+
+                            # Mover en Y
+                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
+                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
+                                flagLimitYM = True
+                            elif lastposAI[1] > pos[1]:
+                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
+                            else:
+                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                                flagLimitXM = False
+                                flagLimitYM = False
+                            
+                        if pos[0] > xPos:
+                            print('LEFT') 
+                            flagLimitXP = True
+                        elif pos[1] > yPos:
+                            flagLimitYP = True
+                        else:
+                            flagLimitXP = False
+                            flagLimitYP = False
 
                 if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
                     points.append(pos)
 
                 drawpoints(mapeado, points, pos, yaw, 1)
                 cv2.imshow('Mapeado', mapeado)
-                
+
+                # if i > 0:
+                #     pos = (pos[0], yPos)
+                #     print('Pos i: ', pos)
+
                 """
                     #################### MAPEADO ###################
                 """
@@ -436,7 +894,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
 
                 # Posicionar el texto en la esquina superior izquierda (coordenadas 0, 0)
                 text_rect = text.get_rect(topleft=(0, 0))
-                # win.blit(text, text_rect)  # Mostrar el texto en la posición especificada
 
                 current_time = pygame.time.get_ticks()
                 if current_time - last_toggle > interval:
@@ -475,5 +932,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
             print("Intentando establecer conexion")
             loadScreenApp(win)
             print(e)
+            break
         else:
             print("Conexion establecida")

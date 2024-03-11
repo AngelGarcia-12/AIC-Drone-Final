@@ -58,8 +58,9 @@ def mainWindowApp():
     name_app = "AIC-Drone"
     pygame.display.set_caption(name_app)
 
-    screen_app.cameraScreen(win, path=screen_app.path, destm=destm, destpx=destpx, obstaculos=obstaculos)
+    screen_app.cameraScreen(win, path=screen_app.path, destm=destm, 
+                            destpx=destpx, obstaculos=obstaculos)
 
-    # pygame.display.update() 
+    pygame.display.update()
 
 init()

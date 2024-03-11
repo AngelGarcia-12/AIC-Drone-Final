@@ -374,98 +374,12 @@ while True:
             posPath = path[1]
             if len(path) != 1:
                 [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                print("Pos New: ", posNew)
             if pos[0] > 250 and posNew[0] > 250:
                 [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
     elif (pos[0] <= LIMIT and vals[0] >= 10) or pos[0] <= LIMIT:
         print("Alcanzo el limite")
-        # socket.send_rc_control(-20, vals[1], vals[2], vals[3])
-    # mapeado = np.zeros((500, 500, 3), np.uint8)
-    # pos = posControl
-    # if getKey('m'):
-    #     if modo == 0:
-    #         path = []
-    #         destm = []
-    #         destpx = []
-    #         i = 0
-    #         print('Cambiado a modo automatico')
-    #     modo = not modo
-
-    # if getKey('r'):
-    #     points = [(0, 0), (0, 0)]
-
-
-    # # if modo == 0:
-    # #     [vals, pos, yaw] = Manual0.getkeyboardinput()
-    # #     time.sleep(0.2)
-    # elif modo == 1:
-    #     print("pos i: ", pos)
-    #     pos = posPath
-    #     # print("points: ", points)
-    #     if i == 0:
-
-    #         print("Escriba las coordenadas (x,y) de destino en metros con precision de 2 decimales")
-    #         n = float(input("Coordenada x = "))  # metros
-    #         z = float(input("Coordenada y = "))
-    #         destm = (n, z)
-    #         destpx = convdist(destm)
-
-    #         slam = SLAM(map=map, view_range=view_range)
-    #         new_observation = {"pos": None, "type": None}
-    #         dstar = DStarLite(map, pos, destpx)
-    #         path, g, rhs = dstar.move_and_replan(robot_position=pos)
-    #         c = len(path)
-    #         # print("Path: ",path)
-
-    #     if new_observation is not None:
-    #         old_map = map
-    #         slam.set_ground_truth_map(gt_map=map)
-
-
-    #     if pos != lastpos:
-    #         lastpos = pos
-
-    #         # slam
-
-    #         new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-    #         dstar.new_edges_and_old_costs = new_edges_and_old_costs
-    #         dstar.sensed_map = slam_map
-
-    #         # d star
-    #         path, g, rhs = dstar.move_and_replan(robot_position=pos)
-    #         c2 = len(path)
-    #         print("Path2: ",path)
-
-    #     # pf.replan()
-    #     # path=pf.get_path()
-    #     # Marca el destino
-    #     cv2.drawMarker(mapeado, destpx, (150, 230, 150), cv2.MARKER_DIAMOND, 6, 1)
-    #     cv2.putText(mapeado, f'({round(destm[0] , 2)},{round(destm[1] , 2)},) m ',
-    #                 (destpx[0] + 5, destpx[1] + 10), cv2.FONT_HERSHEY_PLAIN, 0.75, (150, 230, 150), 1)
-    #     i += 1
-    #     if i % 50 == 0:
-    #         obstaculos = np.unique(obstaculos, axis=0)
-    #     lastpos = pos
-    #     #print(i)
-
-    #     if len(path) == 1 or 0:
-    #         if pos[1] <= 220:
-    #             x = 0
-    #             y = -3
-    #             destm = (x, y)
-    #             destpx = convdist(destm)
-
-    #             slam = SLAM(map=map, view_range=view_range)
-    #             new_observation = {"pos": None, "type": None}
-    #             dstar = DStarLite(map, pos, destpx)
-    #             path, g, rhs = dstar.move_and_replan(robot_position=pos)
-    #             c = len(path)
-    #             print("Path: ",path)
-    #         print(pos)
-    #         print("Ha llegado a su destino, aterrice")
-    #     else:
-    #         pos = path[1]
-    #         posPath = path[1]
-    #     time.sleep(0.25)
+    
     if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
         points.append(pos)
 
