@@ -574,8 +574,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                                 socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
                             
                             # posNew = path[0]
-                            # yPos = pos[1]
-                            # yPos += int(1 * math.sin(math.radians(a)))
                         if pos[0] > xPos: # 250 > 250
                             # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
                             print('LEFT') 
