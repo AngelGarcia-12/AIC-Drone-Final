@@ -572,10 +572,9 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                             # posNew = path[0]
                             # yPos = pos[1]
                             # yPos += int(1 * math.sin(math.radians(a)))
-                        if pos[1] <= LIMIT_EXAMPLE_Y_PLUS:
                             if pos[0] > xPos: # 250 > 250
                                 # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                                print('LEFT') 
+                                print('Move LEFT') 
                                 print(pos[0], ' > ', xPos)
                                 flagLimitXP = True
                             elif pos[0] < xPos:
@@ -587,8 +586,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                                 flagLimitXP = False
                                 flagLimitYP = False
                                 flagLimitXM = False
-                        else:
-                            print('NO LIMIT Y PLUS')
 
                 # Movimiento en direccion x (derecha)
                 elif (pos[0] <= LIMIT_EXAMPLE_X_PLUS and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE_X_PLUS or len(path) >= 1:
