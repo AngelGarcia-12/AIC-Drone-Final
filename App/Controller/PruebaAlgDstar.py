@@ -371,7 +371,7 @@ while True:
         pos = posPath
         if i == 0:
             n = 0.0
-            z = -2.0
+            z = -1.0
             destm = (n, z)
             destpx = convdist(destm)
             slam = SLAM(map=map, view_range=view_range)
@@ -435,7 +435,7 @@ while True:
             posPath = (LIMIT_XP_EXAMPLE, pos[1])
         pos = posPath
         if i == 0:
-            n = 2.0
+            n = 1.0
             z = 0.0
             destm = (n, z)
             destpx = convdist(destm)
@@ -501,7 +501,7 @@ while True:
         pos = posPath
         if i == 0:
             n = 0.0
-            z = 2.0
+            z = 1.0
             destm = (n, z)
             destpx = convdist(destm)
             slam = SLAM(map=map, view_range=view_range)
@@ -565,7 +565,7 @@ while True:
             posPath = (LIMIT_XM_EXAMPLE,pos[1])
         pos = posPath
         if i == 0:
-            n = -2.0
+            n = -1.0
             z = 0.0
             destm = (n, z)
             destpx = convdist(destm)

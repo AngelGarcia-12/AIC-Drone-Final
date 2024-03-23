@@ -28,13 +28,13 @@ points = [(0, 0), (0, 0)]
 modo = 0
 pos = (250, 250)
 posPath = (250, 250)
-# posNew = (250, 250)
+posNew = (250, 250)
 lastpos = (x-1, y-1)
 slam = SLAM(map=map, view_range=view_range)
 new_observation = {"pos": None, "type": None}
 path = []
 running_again = False
-# --------------- Limite de rango para el dron ----------------------#
+#! --------------- Limite de rango para el dron ---------------------- !#
 LIMIT_EXAMPLE_Y_PLUS = 230 # Adelante
 LIMIT_EXAMPLE_Y_MINUS = 270 # Atras
 LIMIT_EXAMPLE_X_PLUS = 230 # Derecha
@@ -43,10 +43,10 @@ LIMIT_Y_PLUS = 50 # Adelante
 LIMIT_Y_MINUS = 350 # Atras
 LIMIT_X_PLUS = 50 # Derecha
 LIMIT_X_MINUS = 350 # Izquierda
-# ------------------------- Constantes ------------------------------#
+#! ------------------------- Constantes ------------------------------ !#
 OBSTACLE = 255
 UNOCCUPIED = 0
-# -------------------------------------------------------------------#
+# ----------------------------------------------------------------------#
 
 def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
@@ -172,6 +172,8 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
 
         y += int(d * math.sin(math.radians(a)))
 
+        # [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+
         return [lr, fb, ud, yv], (x, y), yaw
 
     # Simular presionar boton derecha
@@ -182,6 +184,8 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
         x += int(d * math.cos(math.radians(a)))
 
         y += int(d * math.sin(math.radians(a)))
+
+        # [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
 
         return [lr, fb, ud, yv], (x, y), yaw
 
@@ -196,6 +200,8 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
 
         y += int(d * math.sin(math.radians(a)))
 
+        # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+
         return [lr, fb, ud, yv], (x, y), yaw
 
     # Simular presionar boton izquierda
@@ -206,6 +212,8 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
         x += int(d * math.cos(math.radians(a)))
 
         y += int(d * math.sin(math.radians(a)))
+
+        # [vals, posNew, yaw] = simulGetKeyboardInput('UP')
 
         return [lr, fb, ud, yv], (x, y), yaw
 
@@ -222,11 +230,6 @@ def simulGetKeyboardInput(tecla):
     speed = 10  # cm/s
 
     aspeed = 70  # degrees/s 45 gira  cada vez
-
-    yaw = 0 
-    a = 0 
-    x = 250
-    y = 250
 
     d = 0
     if tecla == 'LEFT':
@@ -481,14 +484,23 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     # pos = posNew
                     path = []
                     running_again = False
+
+                #! Adelante
+                if pos[1] <= LIMIT_EXAMPLE_Y_PLUS:
+                    flagLimitYP = True
+                #! Atras
+                elif pos[1] >= LIMIT_EXAMPLE_Y_MINUS:
+                    flagLimitYM = True
+                #! Izquierda
+                elif pos[0] <= LIMIT_EXAMPLE_X_PLUS:
+                    flagLimitXP = True
+                #! Derecha
+                elif pos[0] >= LIMIT_EXAMPLE_X_MINUS:
+                    flagLimitXM = True
                     
                 # Movimiento en direccion y (adelante)
-                if (pos[1] <= LIMIT_EXAMPLE_Y_PLUS and vals[1] >= 10) or pos[1] <= LIMIT_EXAMPLE_Y_PLUS or len(path) >= 1:
-                    print("Alcanzo el limite Y PLUS")
-                    # if i > 20:
-                    #     socket.send_rc_control(vals[0],vals[1], vals[2], vals[3]) 
-                    # else:   
-                    #     socket.send_rc_control(vals[0], -10, vals[2], vals[3])    
+                if flagLimitYP == True:
+                    print("Alcanzo el limite Adelante")    
                     print("Pos: ", pos)
 
                     if i == 0:
@@ -497,7 +509,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
 
                     if i == 0:
                         n = 0.0
-                        z = -2.0
+                        z = -1.0
                         # Posicion en x al aplicar IA, 10 representa speed
                         xPos = 250 + (n * 10)
                         # Posicion en y al aplicar IA, 10 representa speed
@@ -546,6 +558,7 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         destpx = []
                         i = 0
                         running_again = True
+                        flagLimitYP = False
                     else:
                         pos = path[1]
                         posPath = path[1]
@@ -572,30 +585,31 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                             # posNew = path[0]
                             # yPos = pos[1]
                             # yPos += int(1 * math.sin(math.radians(a)))
-                            if pos[0] > xPos: # 250 > 250
-                                # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                                print('Move LEFT') 
-                                print(pos[0], ' > ', xPos)
-                                flagLimitXP = True
-                            elif pos[0] < xPos:
-                                print(pos[0], ' < ', xPos)
-                                flagLimitXM = True
-                            elif pos[1] < yPos: # yPos = 270
-                                flagLimitYP = True
-                            else:
-                                flagLimitXP = False
-                                flagLimitYP = False
-                                flagLimitXM = False
+                                
+                            # if pos[0] > xPos: # 250 > 250
+                            #     # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            #     print('Move LEFT') 
+                            #     print(pos[0], ' > ', xPos)
+                            #     flagLimitXP = True
+                            # elif pos[0] < xPos:
+                            #     print(pos[0], ' < ', xPos)
+                            #     flagLimitXM = True
+                            # elif pos[1] < yPos: # yPos = 270
+                            #     flagLimitYP = True
+                            # else:
+                            #     flagLimitXP = False
+                            #     flagLimitYP = False
+                            #     flagLimitXM = False
 
                 # Movimiento en direccion x (derecha)
-                elif (pos[0] <= LIMIT_EXAMPLE_X_PLUS and vals[0] >= 10) or pos[0] <= LIMIT_EXAMPLE_X_PLUS or len(path) >= 1:
-                    print("Alcanzo el limite X PLUS")
+                elif flagLimitXP == True:
+                    print("Alcanzo el limite Izquierda")
                     if i == 0:
                         posPath = (LIMIT_EXAMPLE_X_PLUS, pos[1])
                     pos = posPath
 
                     if i == 0:
-                        n = 2.0
+                        n = 1.0
                         z = 0.0
                         # Posicion en x al aplicar IA, 10 representa speed
                         xPos = 250 + (n * 10)
@@ -682,15 +696,15 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                             flagLimitYM = False
 
                 # Moviento en direccion y (atras)
-                elif (pos[1] >= LIMIT_EXAMPLE_Y_MINUS and vals[1] >= 10) or pos[1] >= LIMIT_EXAMPLE_Y_MINUS or len(path) >= 1:
-                    print("Alcanzo el limite Y MINUS")
+                elif  flagLimitYM == True:
+                    print("Alcanzo el limite Atras")
                     if i == 0:
                         posPath = (pos[0], LIMIT_EXAMPLE_Y_MINUS)
                     pos = posPath
 
                     if i == 0:
                         n = 0.0
-                        z = 2.0
+                        z = 1.0
                         # Posicion en x al aplicar IA, 10 representa speed
                         xPos = 250 + (n * 10)
                         # Posicion en y al aplicar IA, 10 representa speed
@@ -776,8 +790,8 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                             flagLimitXP = False
 
                 # Movimiento en direccion x (izquierda)
-                elif (pos[0] >= LIMIT_EXAMPLE_X_MINUS and vals[0] >= 10) or pos[0] >= LIMIT_EXAMPLE_X_MINUS or len(path) >= 1:
-                    print("Alcanzo el limite X MINUS")
+                elif flagLimitXM == True:
+                    print("Alcanzo el limite X Derecha")
                     if i == 0:
                         posPath = (LIMIT_EXAMPLE_X_MINUS, pos[1])
                     pos = posPath
