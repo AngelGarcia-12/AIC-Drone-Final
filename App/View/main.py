@@ -54,7 +54,7 @@ def mainWindowApp():
     icon = pygame.image.load("App/Model/images/icon/logodron 1.png")
     pygame.display.set_icon(icon)
 
-    # Nombre de la apps
+    # Nombre de la app
     name_app = "AIC-Drone"
     pygame.display.set_caption(name_app)
 
