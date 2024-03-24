@@ -322,7 +322,14 @@ def drawpoints(img, points, pos, angulo=0.0, modo = 0):
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
-    # elif pos[1] >= LIMIT:
+    
+    # if pos[1] <= LIMIT_EXAMPLE_Y_PLUS + 3:
+    #     reprodAlarm()
+    # elif pos[1] >= LIMIT_EXAMPLE_Y_MINUS - 3:
+    #     reprodAlarm()
+    # elif pos[0] <= LIMIT_EXAMPLE_X_PLUS + 3:
+    #     reprodAlarm()
+    # elif pos[0] >= LIMIT_EXAMPLE_X_MINUS - 3:
     #     reprodAlarm()
 
     if modo == 1:
