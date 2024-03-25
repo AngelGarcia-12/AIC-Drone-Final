@@ -285,7 +285,7 @@ def simulGetKeyboardInput(tecla):
     if tecla == 'LEFT':
         lr = -speed
         d = dInterval
-        a = 180
+        a = -180
 
     elif tecla == 'RIGHT':
         lr = speed
@@ -300,7 +300,7 @@ def simulGetKeyboardInput(tecla):
     elif tecla == 'DOWN':
         fb = -speed
         d = -dInterval
-        a = -90
+        a = 270
 
     time.sleep(interval)
 
@@ -414,7 +414,8 @@ def cameraScreen():
             socket.streamon()
             camera = 1
             while True:
-                [vals, pos, yaw] = getkeyboardinput()
+                if FLAG_YP == False and FLAG_YM == False and FLAG_XP == False and FLAG_XM == False:
+                    [vals, pos, yaw] = getkeyboardinput()
                 mapeado = np.zeros((500, 500, 3), np.uint8)
                 socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
                 # Valor de Y (arriba) va disminuyendo cuando se mueve
