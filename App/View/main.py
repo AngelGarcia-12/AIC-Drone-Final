@@ -43,23 +43,7 @@ def previewWindowLoad():
 
 # Ventana principal de la aplicacion
 def mainWindowApp():
-    
-    # Mostrar nueva ventana para cargar app
-    pygame.init()
-
-    # Display del tamaño de la pantalla
-    win = pygame.display.set_mode((800, 600))
-
-    # Establecer icono para app
-    icon = pygame.image.load("App/Model/images/icon/logodron 1.png")
-    pygame.display.set_icon(icon)
-
-    # Nombre de la app
-    name_app = "AIC-Drone"
-    pygame.display.set_caption(name_app)
-
-    pygame.display.update()
-
+    # Funcion para cargar la intefaz principal
     screen_app.cameraScreen()
 
 init()
