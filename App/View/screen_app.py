@@ -1,120 +1,229 @@
-import pygame
-from time import sleep, time
-import math
+# Programa para probar el algoritmo D-StarLite
+from d_star_lite import DStarLite
 from djitellopy import tello
-import cv2
-from controller import *
-from d_star_lite import DStarLite, convdist
 from grid import OccupancyGridMap, SLAM
+import cv2
+import math
 import numpy as np
 import os
+import pygame
+import time
 
 socket = tello.Tello()
-global frame, frameCam
 
 # Valores iniciales del drone
+x, y = 250, 250  # posicion inicial
+yaw = 0 # angulo inicial
+OBSTACLE = 255
+UNOCCUPIED = 0
 
-x, y = 250, 250 #Posicion inicial
-a = 0
-i = 0
-yaw = 0 #Angulo inicial
+#!##################### LIMITES ######################!#
+
+LIMIT_YP_EXAMPLE = 230
+LIMIT_YM_EXAMPLE = 270
+LIMIT_XP_EXAMPLE = 230
+LIMIT_XM_EXAMPLE = 270
+
+ #!####################################################!#
+
 x_dim = 500
 y_dim = 500
 start = (x, y)
 destpx = (500, 500)
 view_range = 5
 map = OccupancyGridMap(x_dim, y_dim, '8N')
-points = [(0, 0), (0, 0)]
+points = [(0, 0),(0, 0)]
 modo = 0
+obstaculos = []
+interval = 0.25
+fSpeed = 40 / 10  # Forward Speed in cm/s   (20 cm/s) 115 / 10
+aSpeed = 1800 / 10  # Angular Speed Degrees/s  (45 d/s) 60 gira 30 cada vez
+dInterval = fSpeed * interval
+aInterval = aSpeed * interval
+
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((225 + 10 - j + p, 225 + 5 + j))
+        obstaculos.append((225 + 10 - j + p, 225 + 5 + j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((200 + 10 - j + p, 200 + 5 + j))
+        obstaculos.append((200 + 10 - j + p, 200 + 5 + j))
+for j in range(5):
+        map.set_obstacle((j, j))
+        obstaculos.append((j , j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((225 + 10 + j + p, 225 + 5 - j))
+        obstaculos.append((225 + 10 + j + p, 225 + 5 - j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((225 + 10 + j - p, 225 + 5 + j))
+        obstaculos.append((225 + 10 + j - p, 225 + 5 + j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((300 + 10 + j + p, 100 + 5 - j))
+        obstaculos.append((300 + 10 + j + p, 100 + 5 - j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((225 + 10 + j + p, 225 + 5 - j))
+        obstaculos.append((225 + 10 + j + p, 225 + 5 - j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((210 + 10 + j + p, 300 + 5 - j))
+        obstaculos.append((210 + 10 + j + p, 300 + 5 - j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((260 + 10 + j + p, 270 + 5 - j))
+        obstaculos.append((260 + 10 + j + p, 270 + 5 - j))
+for j in range(10):
+    for p in range(-3, 3):
+        map.set_obstacle((225 + 10 + j + p, 225 + 5 - j))
+        obstaculos.append((225 + 10 + j + p, 225 + 5 - j))
+i = 0
+a = 0
 pos = (250, 250)
-posPath = (250, 250)
 posNew = (250, 250)
+posPath = (250, 250)
 lastpos = (x-1, y-1)
 slam = SLAM(map=map, view_range=view_range)
 new_observation = {"pos": None, "type": None}
-path = []
-running_again = False
-#! --------------- Limite de rango para el dron ---------------------- !#
-LIMIT_EXAMPLE_Y_PLUS = 230 # Adelante
-LIMIT_EXAMPLE_Y_MINUS = 270 # Atras
-LIMIT_EXAMPLE_X_PLUS = 230 # Derecha
-LIMIT_EXAMPLE_X_MINUS = 270 # Izquierda
-LIMIT_Y_PLUS = 50 # Adelante
-LIMIT_Y_MINUS = 350 # Atras
-LIMIT_X_PLUS = 50 # Derecha
-LIMIT_X_MINUS = 350 # Izquierda
-#! ------------------------- Constantes ------------------------------ !#
-OBSTACLE = 255
-UNOCCUPIED = 0
-# ----------------------------------------------------------------------#
 
-def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
+def convdist(posicion, modo=0):
+    """
+    modo 0 es m a px """
+    nposicion = []
+
+    if modo == 0:  # Convertir de m a px del mapeado
+        nposicion.append(int(posicion[0]*100/10+250))
+        nposicion.append(int(round(250-posicion[1] * 100 / 10)))
+
+    elif modo == 1: #convertir px del mapeado a m
+        nposicion.append(round((posicion[0]-250)*10/100, 2))
+        nposicion.append(round(-(posicion[1]-250)*10/100, 2))
+
+    npos=(nposicion[0], nposicion[1])
+
+    return npos
+
+def reprodAlarm():
+    pygame.mixer.init()
+    pygame.mixer.music.load("App/Model/sounds/alarma.mp3")
+    pygame.mixer.music.play(20)
+
+def drawpoints(img, points, pos, obstaculos, angulo=0.0, modo = 0):
+    global path
+    for point in points:
+        cv2.circle(img, point, 1, (240, 240, 240), cv2.FILLED)  # bgr color
+    for point in obstaculos:
+        cv2.circle(img, tuple(point), 1, (10, 130, 240), cv2.FILLED)
+        # bgr color
+    cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)}) m {angulo}gr',
+                (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 0, 70), 1)
+    
+    # Alerta sobre posible perdida de señal
+    if pos[1] <= LIMIT_YP_EXAMPLE + 3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[1] >= LIMIT_YM_EXAMPLE - 3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[0] <= LIMIT_XP_EXAMPLE + 3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.85, (0, 0, 255), 2)
+    elif pos[0] >= LIMIT_XM_EXAMPLE - 3:
+        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
+        text_x = (500 - text_size[0]) // 2
+        text_y = 50
+        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.85, (0, 0, 255), 2) 
+    # elif pos[1] >= 230:
+    #     reprodAlarm()
+    if modo == 1:
+        for point in path:
+            cv2.circle(img, point, 1, (130, 130, 240), cv2.FILLED)
+    cv2.drawMarker(img, pos, (255, 255, 255), cv2.MARKER_STAR, 6, 1)
+
+# LIMIT = 230
+path = []
+destm = []
+destpx = []
+running_again = False
+
+FLAG_XP = False
+FLAG_YP = False
+FLAG_XM = False
+FLAG_YM = False
+
+i = 0
+
+def getkeyboardinput():
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
     d = 0
     global camera, x, y, yaw, a
     speed = 10  # cm/s
-
     aspeed = 70  # degrees/s 45 gira  cada vez
 
     ##################### IZQUIERDA ###############
     if getKey('LEFT'):
-
         lr = -speed
         d = dInterval
         a = -180
 
     #################### DERECHA ##################
     elif getKey('RIGHT'):
-
         lr = speed
         d = -dInterval
         a = 180
 
     #################### ADELANTE ##################
     if getKey('UP'):
-
         fb = speed
         d = dInterval
         a = -90
 
     ################### ATRAS #####################
     elif getKey('DOWN'):
-
         fb = -speed
         d = -dInterval
         a = 270
 
     #################### ELEVAR ###############
     if getKey('w'):
-
         ud = speed
 
     ################### DESCENDER #############
     elif getKey('s'):
-
         ud = -speed
 
     ################## GIRAR IZQUIERDA ##########
     if getKey('a'):
-
         yv = -aspeed
         yaw -= aInterval
 
     ################# GIRAR DERECHA ##############
     elif getKey('d'):
-
         yv = aspeed
         yaw += aInterval
 
     ################ ATERRIZAR ###################
     if getKey('l'):
         socket.land()
-        sleep(2)
+        time.sleep(2)
 
     ############### DESPEGAR #####################
     elif getKey('t'):
         socket.takeoff()
-        sleep(0.25)
+        time.sleep(0.25)
 
     ############### CAMARA #######################
     elif getKey('c'):
@@ -125,21 +234,17 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
             socket.streamon()
             camera = 1
     
-    ################ IA ##########################
-    
-
     ############## FOTO #############################
     elif getKey('f'):
         FOLDER = 'Photos/'
         PICTURE = f'photodrone_{time()}.jpg'
         if not os.path.exists(FOLDER):
             os.makedirs(FOLDER)
-
         PATH_FILE = os.path.join(os.getcwd(), (FOLDER + PICTURE))
         # cv2.imwrite(f'Fotografias/fotografiadrone{time()}.jpg', frame)
         frameCam = socket.get_frame_read().frame
         cv2.imwrite(PATH_FILE, frameCam)
-        sleep(0.2)
+        time.sleep(0.2)
 
     ################# DESCONECTAR ###################
     elif getKey('q'):
@@ -155,7 +260,7 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
         socket.end()
         pygame.quit()
 
-    sleep(0.25)
+    time.sleep(0.25)
 
     if yaw > 180:
         yaw = yaw - 360 * (yaw // 180)
@@ -164,106 +269,37 @@ def getkeyboardinput( limitXP, limitYP, limitXM, limitYM ):
 
     a += yaw
 
-    # Mover coordenadas en Y o X
-    # Simular presionar boton adelante
-    if limitYP == True:
-        fb = 0
-        d = -dInterval
-        a = 270
-        x += int(d * math.cos(math.radians(a)))
+    x += int(d * math.cos(math.radians(a)))
 
-        y += int(d * math.sin(math.radians(a)))
-
-        # [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
-
-        # return [lr, fb, ud, yv], (x, y), yaw
-
-    # Simular presionar boton izquierda
-    if limitXP == True:
-        lr = 0
-        d = dInterval
-        a = -180
-        x += int(d * math.cos(math.radians(a)))
-
-        y += int(d * math.sin(math.radians(a)))
-
-        # [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
-
-        # return [lr, fb, ud, yv], (x, y), yaw
-
-
-    # Simular presionar boton derecha
-    if limitXM == True:
-        lr = 0
-        d = -dInterval
-        a = 180
-
-        x += int(d * math.cos(math.radians(a)))
-
-        y += int(d * math.sin(math.radians(a)))
-
-        # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-
-        # return [lr, fb, ud, yv], (x, y), yaw
-
-    # Simular presionar boton atras
-    if limitYM == True:
-        fb = 0
-        d = dInterval
-        a = -90
-        x += int(d * math.cos(math.radians(a)))
-
-        y += int(d * math.sin(math.radians(a)))
-
-        # [vals, posNew, yaw] = simulGetKeyboardInput('UP')
-
-        # return [lr, fb, ud, yv], (x, y), yaw
-
-    if limitXP == False and limitYP == False and limitXM == False and limitYM == False:
-        x += int(d * math.cos(math.radians(a)))
-
-        y += int(d * math.sin(math.radians(a)))
+    y += int(d * math.sin(math.radians(a)))
 
     return [lr, fb, ud, yv], (x, y), yaw
 
 def simulGetKeyboardInput(tecla):
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
-
     speed = 10  # cm/s
-
     aspeed = 70  # degrees/s 45 gira  cada vez
-
+    global yaw, a, x, y
     d = 0
+
     if tecla == 'LEFT':
-
         lr = -speed
-
         d = dInterval
-
         a = 180
 
     elif tecla == 'RIGHT':
-
         lr = speed
-
         d = -dInterval
-
         a = 180
 
     if tecla == 'UP':
-
         fb = speed
-
         d = dInterval
-
         a = -90
 
     elif tecla == 'DOWN':
-
         fb = -speed
-
         d = -dInterval
-
         a = -90
 
     time.sleep(interval)
@@ -281,120 +317,54 @@ def simulGetKeyboardInput(tecla):
 
     return [lr, fb, ud, yv], (x, y), yaw
 
-# Alarma de deteccion de perdidad de señal
-def reprodAlarm():
-    pygame.mixer.init()
-    pygame.mixer.music.load("App/Model/sounds/alarma.mp3")
-    pygame.mixer.music.play(20)
+# Funcion para detectar tecla presionada
+def getKey(keyName):
+    ans = False
 
-def drawpoints(img, points, pos, angulo=0.0, modo = 0):
-    global path
+    for eve in pygame.event.get(): pass
 
-    for point in points:
+    keyInput = pygame.key.get_pressed()
 
-        cv2.circle(img, point, 1, (240, 240, 240), cv2.FILLED)  # bgr color circulos blancos
+    myKey = getattr(pygame, 'K_{}'.format(keyName))
 
+    # print('K_{}'.format(keyName))
 
-    cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)},{socket.get_height()/100}) m {angulo}gr',
-                (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 50, 0), 1)
-    # Alerta sobre posible perdida de señal
-    if pos[1] <= LIMIT_EXAMPLE_Y_PLUS+3:
-        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
-        text_x = (500 - text_size[0]) // 2
-        text_y = 50
-        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.85, (0, 0, 255), 2)
-    elif pos[1] >= LIMIT_EXAMPLE_Y_MINUS-3:
-        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
-        text_x = (500 - text_size[0]) // 2
-        text_y = 50
-        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.85, (0, 0, 255), 2)
-    elif pos[0] <= LIMIT_EXAMPLE_X_PLUS+3:
-        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
-        text_x = (500 - text_size[0]) // 2
-        text_y = 50
-        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.85, (0, 0, 255), 2)
-    elif pos[0] >= LIMIT_EXAMPLE_X_MINUS-3:
-        text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
-        text_x = (500 - text_size[0]) // 2
-        text_y = 50
-        cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.85, (0, 0, 255), 2)
-    # elif pos[1] >= LIMIT:
-    #     reprodAlarm()
+    if keyInput[myKey]:
+        ans = True
 
-    if modo == 1:
-        for point in path:
-            cv2.circle(img, point, 1, (130, 130, 240), cv2.FILLED)
+    pygame.display.update()
 
-    cv2.drawMarker(img, pos, (245, 170, 0), cv2.MARKER_STAR, 6, 1) # Estrella azul (255,0,0)
+    return ans
 
-def loadScreenApp(win):
-    font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 50)
-    dot_count = 0
-    dot_animation_timer = pygame.time.get_ticks()
+def cameraScreen():
+    pygame.init()
 
-    # Cargar una imagen
-    image = pygame.image.load('App/Model/images/icon/ScreenAppLoading.png')
+    # Display del tamaño de la pantalla
+    win = pygame.display.set_mode((800, 600))
 
-    # Bucle principal
-    clock = pygame.time.Clock()
-    running = True
-    flag = 0
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    # Establecer icono para app
+    icon = pygame.image.load("App/Model/images/icon/logodron 1.png")
+    pygame.display.set_icon(icon)
 
-        win.fill((0, 0, 0))  # Limpiar la pantalla
+    # Nombre de la app
+    name_app = "AIC-Drone"
+    pygame.display.set_caption(name_app)
 
-        # Mostrar la imagen
-        win.blit(image, (0, 0))
+    global running_again
+    global points
+    global FLAG_YP
+    global FLAG_YM
+    global FLAG_XP
+    global FLAG_XM
+    global obstaculos
+    global lastpos
 
-        # Mostrar el texto "Cargando" con los puntos adicionales
-        current_time = pygame.time.get_ticks()
-        if current_time - dot_animation_timer > 500:  # Agregar un punto cada segundo
-            dot_count = (dot_count + 1) % 4  # Ajustar la cantidad de puntos
-            dot_animation_timer = current_time
-    
-        loading_dots = '.' * dot_count
-        text_with_dots = font.render('Estableciendo conexion' + loading_dots, True, (255, 255, 255))
-    
-        # Centrar el texto en la pantalla
-        text_rect = text_with_dots.get_rect(center=win.get_rect().center)
-        win.blit(text_with_dots, text_rect.topleft)
-    
-        pygame.display.flip()
-        clock.tick(20)  # Controlar la velocidad de la animación
-
-        flag += 1
-
-        if flag == 80: # Si pasaron 3 seg
-            running = False
-            socket.end()
-            break
-
-pygame.quit()
-
-def cameraScreen(win, path, destm, destpx, obstaculos):
-    global running_again, points
     SIZE_WIDTH = 50
     SIZE_HEIGH = 50
-    yPos = 0
-    xPos = 0
-    flagLimitYP = False
-    flagLimitXP = False
-    flagLimitYM = False
-    flagLimitXM = False
     i = 0
-    lastpos = (x-1, y-1)
     font = ''
-
     # Mostrar info de la bateria
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 20)
-
     # Botones
     btn_up = pygame.image.load('App/Model/images/buttons/button-up.png')
     btn_bottom = pygame.image.load('App/Model/images/buttons/button-bottom.png')
@@ -404,7 +374,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
     btn_land = pygame.image.load('App/Model/images/buttons/land-dron.png')
     btn_takeoff_key = pygame.image.load('App/Model/images/buttons/key-t.png')
     btn_land_key = pygame.image.load('App/Model/images/buttons/key-l.png')
-
     # Cambiar tamano
     icon_btn_up = pygame.transform.scale(btn_up, (SIZE_WIDTH, SIZE_HEIGH))
     icon_btn_bottom = pygame.transform.scale(btn_bottom, (SIZE_WIDTH, SIZE_HEIGH))
@@ -414,7 +383,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
     icon_btn_land = pygame.transform.scale(btn_land, (SIZE_WIDTH, SIZE_HEIGH))
     icon_btn_takeoff_key = pygame.transform.scale(btn_takeoff_key, (SIZE_WIDTH+48, SIZE_HEIGH+8))# 40px de diferencia
     icon_btn_land_key = pygame.transform.scale(btn_land_key, (SIZE_WIDTH-12, SIZE_HEIGH-12))
-
     # Obtener los rectángulos de las imágenes para su posicionamiento
     button_up_rect = icon_btn_up.get_rect()
     button_down_rect = icon_btn_bottom.get_rect()
@@ -424,7 +392,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
     buttom_land_rect = icon_btn_land.get_rect()
     buttom_takeoff_key_rect = icon_btn_takeoff_key.get_rect()
     buttom_land_key_rect = icon_btn_land_key.get_rect()
-
     # Posicionar los botones en la esquina inferior derecha
     button_down_rect.bottomright = (800 - 60, 600 - 20)
     button_right_rect.bottomright = (800 - 20, 600 - 60)
@@ -434,7 +401,6 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
     buttom_land_rect.center = (450, 20)
     buttom_takeoff_key_rect.center = (350, 20)
     buttom_land_key_rect.center = (450, 20)
-
     # Hacer que parpadee el boton al pulsarlo
     clock = pygame.time.Clock()
     visible = True
@@ -447,13 +413,11 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
             socket.connect()
             socket.streamon()
             camera = 1
-
             while True:
-                [vals, pos, yaw]=getkeyboardinput( flagLimitXP, flagLimitYP,
-                                                   flagLimitXM, flagLimitYM )
-                # vals = getkeyboardinput()
+                [vals, pos, yaw] = getkeyboardinput()
+                mapeado = np.zeros((500, 500, 3), np.uint8)
                 socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-                sleep(0.15)
+                # Valor de Y (arriba) va disminuyendo cuando se mueve
                 if camera == 1:
                     frame = socket.get_frame_read().frame
                     frameCam = socket.get_frame_read().frame
@@ -465,57 +429,35 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     frame = pygame.surfarray.make_surface(frame)
                     win.blit(frame,(0,0))
 
-                """
-                    ################## MAPEADO #################
-                """
-                # print(points)
-                # mapeado = np.zeros((500, 500, 3), np.uint8)
-                
-                # if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
-                #     points.append(pos)
-                # # Mapeado
-                # drawpoints(mapeado, points, pos, yaw, modo)
-                # cv2.imshow('Mapping', mapeado)
-
-                #LIMIT es una constante que representa el limite permitido
-                mapeado = np.zeros((500, 500, 3), np.uint8)
-                print(pos)
-
-                # Identificar segunda o mas usos del retorno
                 if running_again == True:
-                    # pos = posNew
+                    pos = posNew
                     path = []
                     running_again = False
+                    print('Pos Again: ', pos)
 
                 #! Adelante
-                if pos[1] <= LIMIT_EXAMPLE_Y_PLUS:
-                    flagLimitYP = True
+                if pos[1] <= LIMIT_YP_EXAMPLE:
+                    FLAG_YP = True
                 #! Atras
-                elif pos[1] >= LIMIT_EXAMPLE_Y_MINUS:
-                    flagLimitYM = True
+                elif pos[1] >= LIMIT_YM_EXAMPLE:
+                    FLAG_YM = True
                 #! Izquierda
-                elif pos[0] <= LIMIT_EXAMPLE_X_PLUS:
-                    flagLimitXP = True
+                elif pos[0] <= LIMIT_XP_EXAMPLE:
+                    FLAG_XP = True
                 #! Derecha
-                elif pos[0] >= LIMIT_EXAMPLE_X_MINUS:
-                    flagLimitXM = True
-                    
-                # Movimiento en direccion y (adelante)
-                if flagLimitYP == True:
-                    print("Alcanzo el limite Adelante")    
+                elif pos[0] >= LIMIT_XM_EXAMPLE:
+                    FLAG_XM = True
+
+                if FLAG_YP == True:
+                    print("Alcanzo el limite Adelante")
+                    # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
                     print("Pos: ", pos)
-
                     if i == 0:
-                        posPath = (pos[0],LIMIT_EXAMPLE_Y_PLUS)
+                        posPath = (pos[0],LIMIT_YP_EXAMPLE)
                     pos = posPath
-
                     if i == 0:
                         n = 0.0
                         z = -1.0
-                        # Posicion en x al aplicar IA, 10 representa speed
-                        xPos = 250 + (n * 10)
-                        # Posicion en y al aplicar IA, 10 representa speed
-                        yPos = 250 + (z * -10)
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)
@@ -559,72 +501,31 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         destm = []
                         destpx = []
                         i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
                         running_again = True
-                        flagLimitYP = False
-                        flagLimitXP = False
-                        flagLimitXM = False
+                        FLAG_YP = False
                     else:
                         pos = path[1]
                         posPath = path[1]
-    
                         if len(path) != 1:
-                            # [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
-                            lastposAI = path[0]
-                            # Mover en X
-                            # Mover a la derecha signica incrementar x
-                            # Para disminuir con negativo
-                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
-                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
-                            elif lastposAI[0] > pos[0]:
-                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                            print("Pos New: ", posNew)
+                        if pos[0] > 250 and posNew[0] > 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                        if pos[0] < 250 and posNew[0] < 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
 
-                            # Mover en Y
-                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
-                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
-                            elif lastposAI[1] > pos[1]:
-                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
-                            else:
-                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-
-                            if pos[0] == xPos:
-                                flagLimitXP = False
-                                flagLimitXM = False
-                            elif pos[0] > xPos: #(260, 230) > 250
-                                flagLimitXP = True
-                            elif pos[0] < xPos: #(240, 230) < 250
-                                flagLimitXM = True
-
-                            # if pos[0] > xPos: # 250 > 250
-                            #     # [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                            #     print('Move LEFT') 
-                            #     print(pos[0], ' > ', xPos)
-                            #     flagLimitXP = True
-                            # elif pos[0] < xPos:
-                            #     print(pos[0], ' < ', xPos)
-                            #     flagLimitXM = True
-                            # elif pos[1] < yPos: # yPos = 270
-                            #     flagLimitYP = True
-                            # else:
-                            #     flagLimitXP = False
-                            #     flagLimitYP = False
-                            #     flagLimitXM = False
-
-                # Movimiento en direccion x (derecha)
-                elif flagLimitXP == True:
+                elif FLAG_XP == True:
                     print("Alcanzo el limite Izquierda")
-                    print("Pos: ", pos)
-
                     if i == 0:
-                        posPath = (LIMIT_EXAMPLE_X_PLUS, pos[1])
+                        posPath = (LIMIT_XP_EXAMPLE, pos[1])
                     pos = posPath
-
                     if i == 0:
                         n = 1.0
                         z = 0.0
-                        # Posicion en x al aplicar IA, 10 representa speed
-                        xPos = 250 + (n * 10)
-                        # Posicion en y al aplicar IA, 10 representa speed
-                        yPos = 250 + (z * 10)
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)
@@ -668,70 +569,31 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         destm = []
                         destpx = []
                         i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
                         running_again = True
-                        flagLimitXP = False
-                        flagLimitYP = False
-                        flagLimitYM = False
+                        FLAG_XP = False
                     else:
                         pos = path[1]
                         posPath = path[1]
-                        
                         if len(path) != 1:
-                            lastposAI = path[0]
-                            # Mover en X
-                            # Mover a la derecha signica incrementar x
-                            # Para disminuir con negativo
-                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
-                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
-                            elif lastposAI[0] > pos[0]:
-                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                            print("Pos New: ", posNew)
+                        if pos[1] > 250 and posNew[1] > 250: #(270, 253)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                        if pos[1] < 250 and posNew[1] < 250:#(270, 230)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
 
-                            # Mover en Y
-                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
-                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
-                            elif lastposAI[1] > pos[1]:#230 > 231
-                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
-                            else:
-                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-
-                            if pos[1] == yPos:
-                                flagLimitYP = False
-                                flagLimitYM = False
-                            elif pos[1] > yPos:
-                                flagLimitYP = True
-                            elif pos[1] < yPos:
-                                flagLimitYM = True
-                            
-                        # if pos[0] < xPos: # (230,242) (231,243) xPos = 270
-                        #     print('RIGHT') 
-                        #     flagLimitXP = True
-                        # elif pos[1] > yPos:
-                        #     print('UP')
-                        #     flagLimitYM = True
-                        # elif pos[1] < yPos:
-                        #     print('DOWN')
-                        #     flagLimitYP = True
-                        # else:
-                        #     flagLimitXP = False
-                        #     flagLimitYP = False
-                        #     flagLimitYM = False
-
-                # Moviento en direccion y (atras)
-                elif  flagLimitYM == True:
+                elif FLAG_YM == True:
                     print("Alcanzo el limite Atras")
-                    print("Pos: ", pos)
-
                     if i == 0:
-                        posPath = (pos[0], LIMIT_EXAMPLE_Y_MINUS)
+                        posPath = (pos[0],LIMIT_YM_EXAMPLE)
                     pos = posPath
-
                     if i == 0:
                         n = 0.0
                         z = 1.0
-                        # Posicion en x al aplicar IA, 10 representa speed
-                        xPos = 250 + (n * 10)
-                        # Posicion en y al aplicar IA, 10 representa speed
-                        yPos = 250 + (z * -10)
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)
@@ -775,70 +637,31 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         destm = []
                         destpx = []
                         i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
                         running_again = True
-                        flagLimitYM = False
-                        flagLimitXP = False
-                        flagLimitXM = False
+                        FLAG_YM = False
                     else:
                         pos = path[1]
                         posPath = path[1]
-                        
                         if len(path) != 1:
-                            lastposAI = path[0]
-                            # Mover en X
-                            # Mover a la derecha signica incrementar x
-                            # Para disminuir con negativo
-                            if lastposAI[0] < pos[0]:#(236, 270) (237, 269)
-                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
-                            elif lastposAI[0] > pos[0]:
-                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                            print("Pos New: ", posNew)
+                        if pos[0] > 250 and posNew[0] > 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                        if pos[0] < 250 and posNew[0] < 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
 
-                            # Mover en Y
-                            if lastposAI[1] < pos[1]:#(255, 270) (255, 269)
-                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
-                            elif lastposAI[1] > pos[1]:
-                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
-                            else:
-                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-
-                            if pos[0] == xPos:
-                                flagLimitXP = False
-                                flagLimitXM = False
-                            elif pos[0] > xPos: #(260, 230) >= 250
-                                flagLimitXP = True
-                            elif pos[0] < xPos: #(240, 230) <= 250
-                                flagLimitXM = True
-                            
-                        # if pos[0] > xPos:
-                        #     print('LEFT') 
-                        #     print(pos[0], ' > ', xPos)
-                        #     flagLimitXP = True
-                        # elif pos[0] < xPos:
-                        #     print(pos[0], ' < ', xPos)
-                        #     flagLimitXM = True
-                        # elif pos[1] > yPos:# yPos = 230 270 > 230
-                        #     flagLimitYM = True
-                        # else:
-                        #     flagLimitXM = False
-                        #     flagLimitYM = False
-                        #     flagLimitXP = False
-
-                # Movimiento en direccion x (izquierda)
-                elif flagLimitXM == True:
-                    print("Alcanzo el limite X Derecha")
-                    print("Pos: ", pos)
-
+                elif FLAG_XM == True:
+                    print("Alcanzo el limite Derecha")
                     if i == 0:
-                        posPath = (LIMIT_EXAMPLE_X_MINUS, pos[1])
+                        posPath = (LIMIT_XM_EXAMPLE,pos[1])
                     pos = posPath
-
                     if i == 0:
                         n = -1.0
                         z = 0.0
-                        # Posicion en x al aplicar IA, 10 representa speed
-                        xPos = 250 + (n * 10)
-                        # Posicion en y al aplicar IA, 10 representa speed
-                        yPos = 250 + (z * 10)
                         destm = (n, z)
                         destpx = convdist(destm)
                         slam = SLAM(map=map, view_range=view_range)
@@ -882,77 +705,43 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                         destm = []
                         destpx = []
                         i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
                         running_again = True
-                        flagLimitXM = False
-                        flagLimitYP = False
-                        flagLimitYM = False
+                        FLAG_XM = False
                     else:
                         pos = path[1]
                         posPath = path[1]
-                        
                         if len(path) != 1:
-                            lastposAI = path[0]
-                            # Mover en X
-                            # Mover a la derecha signica incrementar x
-                            # Para disminuir con negativo
-                            if lastposAI[0] < pos[0]:#(255, 230) (255, 231)
-                                socket.send_rc_control(10, vals[1], vals[2], vals[3])
-                            elif lastposAI[0] > pos[0]:
-                                socket.send_rc_control(-10, vals[1], vals[2], vals[3])
-
-                            # Mover en Y
-                            if lastposAI[1] < pos[1]:#(255, 230) (255, 231)
-                                socket.send_rc_control(vals[0], -10, vals[2], vals[3])
-                            elif lastposAI[1] > pos[1]:
-                                socket.send_rc_control(vals[0], 10, vals[2], vals[3])
-                            else:
-                                socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-
-                            if pos[1] == yPos:
-                                flagLimitYP = False
-                                flagLimitYM = False
-                            elif pos[1] > yPos:
-                                flagLimitYP = True
-                            elif pos[1] < yPos:
-                                flagLimitYM = True
-                            
-                        # if pos[0] > xPos:# 250 > 250
-                        #     print('LEFT') 
-                        #     flagLimitXP = True
-                        # elif pos[1] > yPos:
-                        #     print('UP')
-                        #     flagLimitYP = True
-                        # elif pos[1] < yPos:
-                        #     print('DOWN')
-                        #     flagLimitYM = True
-                        # else:
-                        #     flagLimitXP = False
-                        #     flagLimitYP = False
-                        #     flagLimitYM = False
-
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                            print("Pos New: ", posNew)
+                        if pos[1] > 250 and posNew[1] > 250: #(270, 253)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                        if pos[1] < 250 and posNew[1] < 250:#(270, 230)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                            socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                
                 if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
                     points.append(pos)
 
-                drawpoints(mapeado, points, pos, yaw, 1)
+                # Mapeado
+                # drawpoints(mapeado, points, pos, obstaculos, yaw, modo)
+                drawpoints(mapeado, points, pos, obstaculos, yaw, 1)
                 cv2.imshow('Mapeado', mapeado)
 
                 """
                     #################### MAPEADO ###################
                 """
-
                 cv2.waitKey(1)
-
                 # Porcentaje de la bateria
                 text = font.render(f"bateria: {socket.get_battery()}%", True, (255,225,255))
-
                 # Posicionar el texto en la esquina superior izquierda (coordenadas 0, 0)
                 text_rect = text.get_rect(topleft=(0, 0))
-
                 current_time = pygame.time.get_ticks()
                 if current_time - last_toggle > interval:
                     visible = not visible
                     last_toggle = current_time
-
                 # Mostrar u ocultar la imagen dependiendo del estado visible
                 if visible and getKey('UP'):
                     win.blit(icon_btn_up, button_up_rect)
@@ -973,17 +762,14 @@ def cameraScreen(win, path, destm, destpx, obstaculos):
                     win.blit(icon_btn_right, button_right_rect)
                     win.blit(icon_btn_takeoff_key, buttom_takeoff_key_rect)
                     win.blit(icon_btn_land_key, buttom_land_key_rect)
-
                 win.blit(text, text_rect)  # Mostrar el texto en la posición especificada
-
                 pygame.display.flip() 
                 clock.tick(20)  # Controlar la velocidad del bucle
-
             # Clean up
             cv2.destroyAllWindows()
         except Exception as e:
             print("Intentando establecer conexion")
-            loadScreenApp(win)
+            # loadScreenApp(win)
             print(e)
             break
         else:
