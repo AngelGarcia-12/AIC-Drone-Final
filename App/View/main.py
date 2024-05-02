@@ -38,12 +38,13 @@ def previewWindowLoad():
     # Mostrar imagen por 2 seg
     pygame.time.wait(2000)
 
-    # Cerrar ventana
+    # Cerrar
     pygame.quit()
 
 # Ventana principal de la aplicacion
 def mainWindowApp():
     # Funcion para cargar la intefaz principal
+    
     screen_app.cameraScreen()
 
 init()

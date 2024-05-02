@@ -18,7 +18,15 @@ yaw = 0 # angulo inicial
 OBSTACLE = 255
 UNOCCUPIED = 0
 
-#%% ------------------ Configuracion de posicion ----------------- %%#
+#!##################### LIMITES ######################!#
+
+LIMIT_YP_EXAMPLE = 230
+LIMIT_YM_EXAMPLE = 270
+LIMIT_XP_EXAMPLE = 230
+LIMIT_XM_EXAMPLE = 270
+
+ #!####################################################!#
+
 x_dim = 500
 y_dim = 500
 start = (x, y)
@@ -33,27 +41,6 @@ fSpeed = 40 / 10  # Forward Speed in cm/s   (20 cm/s) 115 / 10
 aSpeed = 1800 / 10  # Angular Speed Degrees/s  (45 d/s) 60 gira 30 cada vez
 dInterval = fSpeed * interval
 aInterval = aSpeed * interval
-i = 0
-a = 0
-pos = (250, 250)
-posNew = (250, 250)
-posPath = (250, 250)
-lastpos = (x-1, y-1)
-slam = SLAM(map=map, view_range=view_range)
-new_observation = {"pos": None, "type": None}
-
-#%% -------------------------------------------------------------- %%# 
-
-#!##################### LIMITES ######################!#
-
-LIMIT_YP_EXAMPLE = 230
-LIMIT_YM_EXAMPLE = 270
-LIMIT_XP_EXAMPLE = 230
-LIMIT_XM_EXAMPLE = 270
-
-#! #################################################### !#
-
-#! ################### OBSTACULOS ##################### !#
 
 for j in range(10):
     for p in range(-3, 3):
@@ -94,14 +81,15 @@ for j in range(10):
     for p in range(-3, 3):
         map.set_obstacle((225 + 10 + j + p, 225 + 5 - j))
         obstaculos.append((225 + 10 + j + p, 225 + 5 - j))
+i = 0
+a = 0
+pos = (250, 250)
+posNew = (250, 250)
+posPath = (250, 250)
+lastpos = (x-1, y-1)
+slam = SLAM(map=map, view_range=view_range)
+new_observation = {"pos": None, "type": None}
 
-#! ######################################################## !#
-        
-#%% ---------------- FUNCIONES ----------------------------- %%#
-        
-"""
-Esta funcion se encarga del mapeado del dron
-"""        
 def convdist(posicion, modo=0):
     """
     modo 0 es m a px """
@@ -119,26 +107,22 @@ def convdist(posicion, modo=0):
 
     return npos
 
-def reprodAlarm():
-    """
-    Funcion que se encarga de generar una alarma al llegar el limite permitido
-    """
+def reprodAlarm( flag ):
     pygame.mixer.init()
     pygame.mixer.music.load("App/Model/sounds/alarma.mp3")
     pygame.mixer.music.play(20)
 
+    if flag == True:
+        pygame.mixer.music.stop()
+
 def drawpoints(img, points, pos, obstaculos, angulo=0.0, modo = 0):
-    """
-    Funcion que se encarga del mapeado, psosicion actual y obstauculos
-    """
     global path
+    flag = False
 
     for point in points:
         cv2.circle(img, point, 1, (240, 240, 240), cv2.FILLED)  # bgr color
-
     for point in obstaculos:
         cv2.circle(img, tuple(point), 1, (10, 130, 240), cv2.FILLED)
-
         # bgr color
     cv2.putText(img, f'({round((points[-1][0] - 250)/10, 2)},{round((-points[-1][1] + 250)/10, 2)}) m {angulo}gr',
                 (points[-1][0] + 3, points[-1][1] + 5), cv2.FONT_HERSHEY_PLAIN, 0.75, (255, 0, 70), 1)
@@ -150,24 +134,31 @@ def drawpoints(img, points, pos, obstaculos, angulo=0.0, modo = 0):
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
+        reprodAlarm(flag)
     elif pos[1] >= LIMIT_YM_EXAMPLE - 3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
+        reprodAlarm(flag)
     elif pos[0] <= LIMIT_XP_EXAMPLE + 3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
                     0.85, (0, 0, 255), 2)
+        reprodAlarm(flag)
     elif pos[0] >= LIMIT_XM_EXAMPLE - 3:
         text_size = cv2.getTextSize("Alcanzo el limite", cv2.FONT_HERSHEY_SIMPLEX, 0.85, 2)[0]
         text_x = (500 - text_size[0]) // 2
         text_y = 50
         cv2.putText(img, "Alcanzo el limite", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.85, (0, 0, 255), 2) 
+                        0.85, (0, 0, 255), 2)
+        reprodAlarm(flag)
+    else:
+        flag = True
+        reprodAlarm( flag ) 
     # elif pos[1] >= 230:
     #     reprodAlarm()
     if modo == 1:
@@ -189,9 +180,6 @@ FLAG_YM = False
 i = 0
 
 def getkeyboardinput():
-    """
-    Funcion que controla el pulsamiento de una tecla
-    """
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
     d = 0
     global camera, x, y, yaw, a
@@ -301,9 +289,6 @@ def getkeyboardinput():
     return [lr, fb, ud, yv], (x, y), yaw
 
 def simulGetKeyboardInput(tecla):
-    """
-    Funcion que simula el pulsamiento de una tecla
-    """
     lr, fb, ud, yv = 0, 0, 0, 0  # left-right forward-backward up-down yaw-velocity
     speed = 10  # cm/s
     aspeed = 70  # degrees/s 45 gira  cada vez
@@ -347,9 +332,6 @@ def simulGetKeyboardInput(tecla):
 
 # Funcion para detectar tecla presionada
 def getKey(keyName):
-    """
-    Funcion que obtiene y detecta la tecla presionada
-    """
     ans = False
 
     for eve in pygame.event.get(): pass
@@ -368,11 +350,7 @@ def getKey(keyName):
     return ans
 
 def loadScreenApp(win):
-    """
-    Funcion que carga una pantalla cuando el dron no logra establecer conexion
-    """
-    global font
-
+    font = ''
     font = pygame.font.Font("App/Model/images/icon/sarpanch/Sarpanch-Medium.ttf", 50)
     dot_count = 0
     dot_animation_timer = pygame.time.get_ticks()
@@ -420,17 +398,10 @@ def loadScreenApp(win):
 pygame.quit()
 
 def cameraScreen():
-    """
-    Funcion principal que carga la interfaz 
-    asi como el proceso de retorno mediante el algoritmo D*Lite
-    """
     pygame.init()
 
     # Display del tamaño de la pantalla
-    WIDTH_SCREEN = 800
-    HIGTH_SCREEN = 600
-
-    win = pygame.display.set_mode((WIDTH_SCREEN, HIGTH_SCREEN))
+    win = pygame.display.set_mode((800, 600))
 
     # Establecer icono para app
     icon = pygame.image.load("App/Model/images/icon/logodron 1.png")
@@ -503,7 +474,7 @@ def cameraScreen():
             socket.connect()
             socket.streamon()
             camera = 1
-            while socket.is_flying == False:
+            while True:
                 if FLAG_YP == False and FLAG_YM == False and FLAG_XP == False and FLAG_XM == False:
                     [vals, pos, yaw] = getkeyboardinput()
                 mapeado = np.zeros((500, 500, 3), np.uint8)
@@ -830,9 +801,11 @@ def cameraScreen():
                 # Posicionar el texto en la esquina superior izquierda (coordenadas 0, 0)
                 text_rect = text.get_rect(topleft=(0, 0))
                 current_time = pygame.time.get_ticks()
+
                 if current_time - last_toggle > interval:
                     visible = not visible
                     last_toggle = current_time
+
                 # Mostrar u ocultar la imagen dependiendo del estado visible
                 if visible and getKey('UP'):
                     win.blit(icon_btn_up, button_up_rect)
@@ -853,8 +826,8 @@ def cameraScreen():
                     win.blit(icon_btn_right, button_right_rect)
                     win.blit(icon_btn_takeoff_key, buttom_takeoff_key_rect)
                     win.blit(icon_btn_land_key, buttom_land_key_rect)
+                
                 win.blit(text, text_rect)  # Mostrar el texto en la posición especificada
-
                 pygame.display.flip() 
                 clock.tick(20)  # Controlar la velocidad del bucle
             # Clean up
