@@ -34,6 +34,7 @@ def previewWindowLoad():
     screen_icon = pygame.image.load("App/Model/images/icon/ScreenApp.png")
     win.blit(screen_icon, screen_icon.get_rect())
     pygame.display.update()
+    
 
     # Mostrar imagen por 2 seg
     pygame.time.wait(2000)
