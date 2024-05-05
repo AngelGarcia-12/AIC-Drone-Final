@@ -44,8 +44,33 @@ def previewWindowLoad():
 
 # Ventana principal de la aplicacion
 def mainWindowApp():
-    # Funcion para cargar la intefaz principal
-    
-    screen_app.cameraScreen()
+    print("""
+      ***   ****   ******        ******    *****     ****   **      * ***********
+     *   *   **   *      *      *      *   *    *   *    *  * *     * **
+    *     *  **   *             *       *  *    *  *      * *  *    * **
+    *******  **   *        **** *        * *****   *      * *   *   * *******
+    *     *  **   *        **** *        * *    *  *      * *    *  * *******
+    *     *  **   *             *       *  *     * *      * *     * * **
+    *     *  **   *      *      *      *   *     *  *    *  *      ** **
+      ***   ****   ******        ******    *     **  ****   *       * ***********
+    """)
+
+    keyboard_joystick_flag = int(input(
+    """
+    Presiona 1 si quieres usar mando
+    Presiona 0 si quieres usar el teclado
+    Opcion: """))
+
+    while True:
+        if keyboard_joystick_flag == 0:
+            # Funcion para cargar la intefaz principal con teclado
+            screen_app.cameraScreen()
+            break
+        elif keyboard_joystick_flag == 1:
+            # Funcion para cargar la interfaz principal con mando
+            screen_app.gamepadDrone()
+            break
+        else:
+            print("Opcion no valida, elija una de las opciones")
 
 init()
