@@ -465,7 +465,7 @@ def gamepadDrone():
     # Porcentaje de la bateria
     textGamepad = font.render(f"Gamepad: {joystick.get_name()}", True, (255,225,255))
     # Posicionar el texto en la esquina superior izquierda (coordenadas 0, 0)
-    text_rect = textGamepad.get_rect(topleft=(WIDTH_SCREEN/2, 0))
+    text_rect = textGamepad.get_rect(topleft=(WIDTH_SCREEN/3, 0))
     win.blit(textGamepad, text_rect)  # Mostrar el texto en la posición especificada
     pygame.display.flip()
 
