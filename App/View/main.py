@@ -55,22 +55,24 @@ def mainWindowApp():
       ***   ****   ******        ******    *     **  ****   *       * ***********
     """)
 
-    keyboard_joystick_flag = int(input(
-    """
-    Presiona 1 si quieres usar mando
-    Presiona 0 si quieres usar el teclado
-    Opcion: """))
-
     while True:
-        if keyboard_joystick_flag == 0:
-            # Funcion para cargar la intefaz principal con teclado
-            screen_app.cameraScreen()
-            break
-        elif keyboard_joystick_flag == 1:
-            # Funcion para cargar la interfaz principal con mando
-            screen_app.gamepadDrone()
-            break
-        else:
-            print("Opcion no valida, elija una de las opciones")
+        try:
+            keyboard_joystick_flag = int(input(
+            """
+            Presiona 1 si quieres usar mando
+            Presiona 0 si quieres usar el teclado
+            Opcion: """))
+            if keyboard_joystick_flag == 0:
+                # Funcion para cargar la intefaz principal con teclado
+                screen_app.cameraScreen()
+                break
+            elif keyboard_joystick_flag == 1:
+                # Funcion para cargar la interfaz principal con mando
+                screen_app.gamepadDrone()
+                break
+            else:
+                print("Opcion no valida, elija una de las opciones")
+        except ValueError:
+            print("Introduce una opcion que sea un numero")
 
 init()
