@@ -10,7 +10,7 @@ obstaculos = []
 def init():
 
     # Cargar la ventana de presentacion de la app
-    # previewWindowLoad()
+    previewWindowLoad()
 
     # Cargar la ventana principal de la app
     mainWindowApp()
@@ -23,7 +23,7 @@ def previewWindowLoad():
     win = pygame.display.set_mode((800, 500))
 
     # Establecer icono para app
-    icon = pygame.image.load("App/Model/images/icon/logodron 1.png")
+    icon = pygame.image.load("App/View/images/icon/logodron-1.png")
     pygame.display.set_icon(icon)
 
     # Nombre de la app
@@ -31,7 +31,7 @@ def previewWindowLoad():
     pygame.display.set_caption(name_app)
 
     # Imagen de App al cargar
-    screen_icon = pygame.image.load("App/Model/images/icon/ScreenApp.png")
+    screen_icon = pygame.image.load("App/View/images/icon/ScreenApp.png")
     win.blit(screen_icon, screen_icon.get_rect())
     pygame.display.update()
     
