@@ -823,321 +823,323 @@ print("""
   ***   ****   ******        ******    *     **  ****   *       * ***********
 """)
 
-keyboard_joystick_flag = int(input(
-"""
-Presiona 1 si quieres usar mando
-Presiona 0 si quieres usar el teclado
-Opcion: """))
-
 while True:
-    if keyboard_joystick_flag == 1:
-        joystickDrone()
-        break
-    elif keyboard_joystick_flag == 0:
-        while True:
-            [vals, pos, yaw] = getkeyboardinput()
-            mapeado = np.zeros((500, 500, 3), np.uint8)
-            # socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
-            # Valor de Y (arriba) va disminuyendo cuando se mueve
-            if running_again == True:
-                pos = posNew
-                path = []
-                running_again = False
-                print('Pos Again: ', pos)
+    try:
+        keyboard_joystick_flag = int(input(
+        """
+        Presiona 1 si quieres usar mando
+        Presiona 0 si quieres usar el teclado
+        Opcion: """))
+        if keyboard_joystick_flag == 1:
+            joystickDrone()
+            break
+        elif keyboard_joystick_flag == 0:
+            while True:
+                [vals, pos, yaw] = getkeyboardinput()
+                mapeado = np.zeros((500, 500, 3), np.uint8)
+                # socket.send_rc_control(vals[0], vals[1], vals[2], vals[3])
+                # Valor de Y (arriba) va disminuyendo cuando se mueve
+                if running_again == True:
+                    pos = posNew
+                    path = []
+                    running_again = False
+                    print('Pos Again: ', pos)
 
-            #! Adelante
-            if pos[1] <= LIMIT_YP_EXAMPLE:
-                FLAG_YP = True
-            #! Atras
-            elif pos[1] >= LIMIT_YM_EXAMPLE:
-                FLAG_YM = True
-            #! Izquierda
-            elif pos[0] <= LIMIT_XP_EXAMPLE:
-                FLAG_XP = True
-            #! Derecha
-            elif pos[0] >= LIMIT_XM_EXAMPLE:
-                FLAG_XM = True
+                #! Adelante
+                if pos[1] <= LIMIT_YP_EXAMPLE:
+                    FLAG_YP = True
+                #! Atras
+                elif pos[1] >= LIMIT_YM_EXAMPLE:
+                    FLAG_YM = True
+                #! Izquierda
+                elif pos[0] <= LIMIT_XP_EXAMPLE:
+                    FLAG_XP = True
+                #! Derecha
+                elif pos[0] >= LIMIT_XM_EXAMPLE:
+                    FLAG_XM = True
 
-            if FLAG_YP == True:
-                print("Alcanzo el limite Adelante")
-                # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
-                print("Pos: ", pos)
-                if i == 0:
-                    posPath = (pos[0],LIMIT_YP_EXAMPLE)
-                pos = posPath
-                if i == 0:
-                    n = 0.0
-                    z = -1.0
-                    destm = (n, z)
-                    destpx = convdist(destm)
-                    slam = SLAM(map=map, view_range=view_range)
-                    new_observation = {"pos": None, "type": None}
-                    dstar = DStarLite(map, pos, destpx)
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c = len(path)
-                    print("Path: ",path)
+                if FLAG_YP == True:
+                    print("Alcanzo el limite Adelante")
+                    # socket.send_rc_control(vals[0], -1, vals[2], vals[3])    
+                    print("Pos: ", pos)
+                    if i == 0:
+                        posPath = (pos[0],LIMIT_YP_EXAMPLE)
+                    pos = posPath
+                    if i == 0:
+                        n = 0.0
+                        z = -1.0
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
 
-                if new_observation is not None:
-                    old_map = map
-                    slam.set_ground_truth_map(gt_map=map)
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
 
-                if pos != lastpos:
+                    if pos != lastpos:
+                        lastpos = pos
+
+                        # slam
+
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
+
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
+
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
                     lastpos = pos
 
-                    # slam
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
+                        running_again = True
+                        FLAG_YP = False
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        if len(path) != 1:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                            print("Pos New: ", posNew)
+                        if pos[0] > 250 and posNew[0] > 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                        if pos[0] < 250 and posNew[0] < 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
 
-                    new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-                    dstar.new_edges_and_old_costs = new_edges_and_old_costs
-                    dstar.sensed_map = slam_map
+                elif FLAG_XP == True:
+                    print("Alcanzo el limite Izquierda")
+                    if i == 0:
+                        posPath = (LIMIT_XP_EXAMPLE, pos[1])
+                    pos = posPath
+                    if i == 0:
+                        n = 1.0
+                        z = 0.0
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
 
-                    # d star
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c2 = len(path)
-                    # print("Path2: ",path)
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
 
-                    # pf.replan()
-                    # path=pf.get_path()
-                    # Marca el destino
-                i += 1
-                if i % 50 == 0:
-                    obstaculos = np.unique(obstaculos, axis=0)
-                lastpos = pos
+                    if pos != lastpos:
+                        lastpos = pos
 
-                # print(pos)
-                if len(path) == 1 or 0:
-                    print("Ha llegado a su destino, aterrice")
-                    cv2.destroyAllWindows()
-                    points = [(0, 0),(0, 0)]
-                    destm = []
-                    destpx = []
-                    i = 0
-                    # [vals, pos, yaw] = resetgetkeyboardinput()
-                    running_again = True
-                    FLAG_YP = False
-                else:
-                    pos = path[1]
-                    posPath = path[1]
-                    if len(path) != 1:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
-                        print("Pos New: ", posNew)
-                    if pos[0] > 250 and posNew[0] > 250:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                    if pos[0] < 250 and posNew[0] < 250:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                        # slam
 
-            elif FLAG_XP == True:
-                print("Alcanzo el limite Izquierda")
-                if i == 0:
-                    posPath = (LIMIT_XP_EXAMPLE, pos[1])
-                pos = posPath
-                if i == 0:
-                    n = 1.0
-                    z = 0.0
-                    destm = (n, z)
-                    destpx = convdist(destm)
-                    slam = SLAM(map=map, view_range=view_range)
-                    new_observation = {"pos": None, "type": None}
-                    dstar = DStarLite(map, pos, destpx)
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c = len(path)
-                    print("Path: ",path)
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
 
-                if new_observation is not None:
-                    old_map = map
-                    slam.set_ground_truth_map(gt_map=map)
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
 
-                if pos != lastpos:
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
                     lastpos = pos
 
-                    # slam
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
+                        running_again = True
+                        FLAG_XP = False
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        if len(path) != 1:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                            print("Pos New: ", posNew)
+                        if pos[1] > 250 and posNew[1] > 250: #(270, 253)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                        if pos[1] < 250 and posNew[1] < 250:#(270, 230)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
 
-                    new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-                    dstar.new_edges_and_old_costs = new_edges_and_old_costs
-                    dstar.sensed_map = slam_map
+                elif FLAG_YM == True:
+                    print("Alcanzo el limite Atras")
+                    if i == 0:
+                        posPath = (pos[0],LIMIT_YM_EXAMPLE)
+                    pos = posPath
+                    if i == 0:
+                        n = 0.0
+                        z = 1.0
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
 
-                    # d star
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c2 = len(path)
-                    # print("Path2: ",path)
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
 
-                    # pf.replan()
-                    # path=pf.get_path()
-                    # Marca el destino
-                i += 1
-                if i % 50 == 0:
-                    obstaculos = np.unique(obstaculos, axis=0)
-                lastpos = pos
+                    if pos != lastpos:
+                        lastpos = pos
 
-                # print(pos)
-                if len(path) == 1 or 0:
-                    print("Ha llegado a su destino, aterrice")
-                    cv2.destroyAllWindows()
-                    points = [(0, 0),(0, 0)]
-                    destm = []
-                    destpx = []
-                    i = 0
-                    # [vals, pos, yaw] = resetgetkeyboardinput()
-                    running_again = True
-                    FLAG_XP = False
-                else:
-                    pos = path[1]
-                    posPath = path[1]
-                    if len(path) != 1:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
-                        print("Pos New: ", posNew)
-                    if pos[1] > 250 and posNew[1] > 250: #(270, 253)
-                        [vals, posNew, yaw] = simulGetKeyboardInput('UP')
-                    if pos[1] < 250 and posNew[1] < 250:#(270, 230)
-                        [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                        # slam
 
-            elif FLAG_YM == True:
-                print("Alcanzo el limite Atras")
-                if i == 0:
-                    posPath = (pos[0],LIMIT_YM_EXAMPLE)
-                pos = posPath
-                if i == 0:
-                    n = 0.0
-                    z = 1.0
-                    destm = (n, z)
-                    destpx = convdist(destm)
-                    slam = SLAM(map=map, view_range=view_range)
-                    new_observation = {"pos": None, "type": None}
-                    dstar = DStarLite(map, pos, destpx)
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c = len(path)
-                    print("Path: ",path)
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
 
-                if new_observation is not None:
-                    old_map = map
-                    slam.set_ground_truth_map(gt_map=map)
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
 
-                if pos != lastpos:
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
                     lastpos = pos
 
-                    # slam
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
+                        running_again = True
+                        FLAG_YM = False
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        if len(path) != 1:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                            print("Pos New: ", posNew)
+                        if pos[0] > 250 and posNew[0] > 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                        if pos[0] < 250 and posNew[0] < 250:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
 
-                    new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-                    dstar.new_edges_and_old_costs = new_edges_and_old_costs
-                    dstar.sensed_map = slam_map
+                elif FLAG_XM == True:
+                    print("Alcanzo el limite Derecha")
+                    if i == 0:
+                        posPath = (LIMIT_XM_EXAMPLE,pos[1])
+                    pos = posPath
+                    if i == 0:
+                        n = -1.0
+                        z = 0.0
+                        destm = (n, z)
+                        destpx = convdist(destm)
+                        slam = SLAM(map=map, view_range=view_range)
+                        new_observation = {"pos": None, "type": None}
+                        dstar = DStarLite(map, pos, destpx)
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c = len(path)
+                        print("Path: ",path)
 
-                    # d star
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c2 = len(path)
-                    # print("Path2: ",path)
+                    if new_observation is not None:
+                        old_map = map
+                        slam.set_ground_truth_map(gt_map=map)
 
-                    # pf.replan()
-                    # path=pf.get_path()
-                    # Marca el destino
-                i += 1
-                if i % 50 == 0:
-                    obstaculos = np.unique(obstaculos, axis=0)
-                lastpos = pos
+                    if pos != lastpos:
+                        lastpos = pos
 
-                # print(pos)
-                if len(path) == 1 or 0:
-                    print("Ha llegado a su destino, aterrice")
-                    cv2.destroyAllWindows()
-                    points = [(0, 0),(0, 0)]
-                    destm = []
-                    destpx = []
-                    i = 0
-                    # [vals, pos, yaw] = resetgetkeyboardinput()
-                    running_again = True
-                    FLAG_YM = False
-                else:
-                    pos = path[1]
-                    posPath = path[1]
-                    if len(path) != 1:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('UP')
-                        print("Pos New: ", posNew)
-                    if pos[0] > 250 and posNew[0] > 250:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                    if pos[0] < 250 and posNew[0] < 250:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('RIGHT')
+                        # slam
 
-            elif FLAG_XM == True:
-                print("Alcanzo el limite Derecha")
-                if i == 0:
-                    posPath = (LIMIT_XM_EXAMPLE,pos[1])
-                pos = posPath
-                if i == 0:
-                    n = -1.0
-                    z = 0.0
-                    destm = (n, z)
-                    destpx = convdist(destm)
-                    slam = SLAM(map=map, view_range=view_range)
-                    new_observation = {"pos": None, "type": None}
-                    dstar = DStarLite(map, pos, destpx)
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c = len(path)
-                    print("Path: ",path)
+                        new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
+                        dstar.new_edges_and_old_costs = new_edges_and_old_costs
+                        dstar.sensed_map = slam_map
 
-                if new_observation is not None:
-                    old_map = map
-                    slam.set_ground_truth_map(gt_map=map)
+                        # d star
+                        path, g, rhs = dstar.move_and_replan(robot_position=pos)
+                        c2 = len(path)
+                        # print("Path2: ",path)
 
-                if pos != lastpos:
+                        # pf.replan()
+                        # path=pf.get_path()
+                        # Marca el destino
+                    i += 1
+                    if i % 50 == 0:
+                        obstaculos = np.unique(obstaculos, axis=0)
                     lastpos = pos
 
-                    # slam
+                    # print(pos)
+                    if len(path) == 1 or 0:
+                        print("Ha llegado a su destino, aterrice")
+                        cv2.destroyAllWindows()
+                        points = [(0, 0),(0, 0)]
+                        destm = []
+                        destpx = []
+                        i = 0
+                        # [vals, pos, yaw] = resetgetkeyboardinput()
+                        running_again = True
+                        FLAG_XM = False
+                    else:
+                        pos = path[1]
+                        posPath = path[1]
+                        if len(path) != 1:
+                            [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
+                            print("Pos New: ", posNew)
+                        if pos[1] > 250 and posNew[1] > 250: #(270, 253)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('UP')
+                        if pos[1] < 250 and posNew[1] < 250:#(270, 230)
+                            [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
+                
+                if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
+                    points.append(pos)
 
-                    new_edges_and_old_costs, slam_map = slam.rescan(global_position=pos)
-                    dstar.new_edges_and_old_costs = new_edges_and_old_costs
-                    dstar.sensed_map = slam_map
+                # Mapeado
+                # drawpoints(mapeado, points, pos, obstaculos, yaw, modo)
+                drawpoints(mapeado, points, pos, obstaculos, yaw, 1)
+                cv2.imshow('Mapeado', mapeado)
 
-                    # d star
-                    path, g, rhs = dstar.move_and_replan(robot_position=pos)
-                    c2 = len(path)
-                    # print("Path2: ",path)
+                # if getKey('q'):
+                #     cv2.imwrite(f'Mapeado/mapeadofinal{time.time()}.jpg', mapeado)
+                #     time.sleep(0.2)
+                #     print('¡Hasta la proxima')
+                #     break
 
-                    # pf.replan()
-                    # path=pf.get_path()
-                    # Marca el destino
-                i += 1
-                if i % 50 == 0:
-                    obstaculos = np.unique(obstaculos, axis=0)
-                lastpos = pos
+                cv2.waitKey(1)
 
-                # print(pos)
-                if len(path) == 1 or 0:
-                    print("Ha llegado a su destino, aterrice")
-                    cv2.destroyAllWindows()
-                    points = [(0, 0),(0, 0)]
-                    destm = []
-                    destpx = []
-                    i = 0
-                    # [vals, pos, yaw] = resetgetkeyboardinput()
-                    running_again = True
-                    FLAG_XM = False
-                else:
-                    pos = path[1]
-                    posPath = path[1]
-                    if len(path) != 1:
-                        [vals, posNew, yaw] = simulGetKeyboardInput('LEFT')
-                        print("Pos New: ", posNew)
-                    if pos[1] > 250 and posNew[1] > 250: #(270, 253)
-                        [vals, posNew, yaw] = simulGetKeyboardInput('UP')
-                    if pos[1] < 250 and posNew[1] < 250:#(270, 230)
-                        [vals, posNew, yaw] = simulGetKeyboardInput('DOWN')
-            
-            if points[-1][0] != pos[0] or points[-1][1] != pos[1]:
-                points.append(pos)
-
-            # Mapeado
-            # drawpoints(mapeado, points, pos, obstaculos, yaw, modo)
-            drawpoints(mapeado, points, pos, obstaculos, yaw, 1)
-            cv2.imshow('Mapeado', mapeado)
-
-            # if getKey('q'):
-            #     cv2.imwrite(f'Mapeado/mapeadofinal{time.time()}.jpg', mapeado)
-            #     time.sleep(0.2)
-            #     print('¡Hasta la proxima')
-            #     break
-
-            cv2.waitKey(1)
-
-        # Clean up
-        cv2.destroyAllWindows()
-        break
-    else:
-        print("Opcion no valida, elija una de las opciones")
+            # Clean up
+            cv2.destroyAllWindows()
+            break
+        else:
+            print("Opcion no valida, elija una de las opciones")
+    except ValueError:
+        print("Introduce una opcion numerica")
